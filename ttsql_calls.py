@@ -1,6 +1,6 @@
 import streamlit as st
 
-from src.vanna.remote import VannaDefault
+from src.ttsql.remote import VannaDefault
 
 @st.cache_resource(ttl=3600)
 def setup_vanna():
