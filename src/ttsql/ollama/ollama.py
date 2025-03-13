@@ -27,7 +27,7 @@ class Ollama(VannaBase):
     if ":" not in self.model:
       self.model += ":latest"
 
-    self.ollama_timeout = config.get("ollama_timeout", 240.0)
+    self.ollama_timeout = config.get("ollama_timeout", 6000.0)
 
     self.ollama_client = ollama.Client(self.host, timeout=Timeout(self.ollama_timeout))
     self.keep_alive = config.get('keep_alive', None)

@@ -4,9 +4,10 @@ from src.ttsql.local import LocalContext_Ollama
 
 @st.cache_resource(ttl=3600)
 def setup_ttsql():
-    vn = LocalContext_Ollama(config={"model": "llama3.1", "path": "chroma"})
-    vn.connect_to_sqlite("https://vanna.ai/Chinook.sqlite")
-    return vn
+    if "vn" not in st.session_state:
+        st.session_state.vn = LocalContext_Ollama(config={"model": "llama3.3", "path": "chroma"})
+        st.session_state.vn.connect_to_sqlite("http://127.0.0.1:8001/download/flight_reservations.db")
+    return st.session_state.vn
 
 @st.cache_data(show_spinner="Generating sample questions ...")
 def generate_questions_cached():
