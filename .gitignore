@@ -20,3 +20,5 @@ chroma.sqlite3
 .coverage.*
 milvus.db
 .milvus.db.lock
+tsql_calls.py
+pp.py

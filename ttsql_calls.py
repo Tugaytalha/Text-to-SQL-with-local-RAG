@@ -5,7 +5,7 @@ from src.ttsql.local import LocalContext_Ollama
 @st.cache_resource(ttl=3600)
 def setup_ttsql():
     if "vn" not in st.session_state:
-        st.session_state.vn = LocalContext_Ollama(config={"model": "llama3.3", "path": "chroma"})
+        st.session_state.vn = LocalContext_Ollama(config={"model": "llama3.1", "path": "chroma"})
         st.session_state.vn.connect_to_sqlite("http://127.0.0.1:8001/download/flight_reservations.db")
     return st.session_state.vn
 
@@ -57,3 +57,30 @@ def generate_followup_cached(question, sql, df):
 def generate_summary_cached(question, df):
     vn = setup_ttsql()
     return vn.generate_summary(question=question, df=df)
+
+# Database Management Functions
+
+@st.cache_data(show_spinner="Fetching training data...")
+def get_training_data_cached():
+    vn = setup_ttsql()
+    return vn.get_training_data()
+
+@st.cache_data(show_spinner="Adding question-SQL pair...", ttl=1)
+def add_question_sql_cached(question, sql):
+    vn = setup_ttsql()
+    return vn.add_question_sql(question=question, sql=sql)
+
+@st.cache_data(show_spinner="Adding DDL statement...", ttl=1)
+def add_ddl_cached(ddl):
+    vn = setup_ttsql()
+    return vn.add_ddl(ddl=ddl)
+
+@st.cache_data(show_spinner="Adding documentation...", ttl=1)
+def add_documentation_cached(documentation):
+    vn = setup_ttsql()
+    return vn.add_documentation(documentation=documentation)
+
+@st.cache_data(show_spinner="Removing training data...", ttl=1)
+def remove_training_data_cached(id):
+    vn = setup_ttsql()
+    return vn.remove_training_data(id=id)
