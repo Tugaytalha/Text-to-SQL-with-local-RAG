@@ -22,3 +22,5 @@ milvus.db
 .milvus.db.lock
 tsql_calls.py
 pp.py
+test_debug_something.ipynb
+tables.xlsx
