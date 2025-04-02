@@ -6,7 +6,7 @@ from src.ttsql.local import LocalContext_Ollama
 @st.cache_resource(ttl=3600)
 def setup_ttsql():
     if "vn" not in st.session_state:
-        st.session_state.vn = LocalContext_Ollama(config={"model": "mt2sl", "path": "chroma"})
+        st.session_state.vn = LocalContext_Ollama(config={"model": "mannix/defog-llama3-sqlcoder-8b", "path": "chroma"})
         st.session_state.vn.connect_to_sqlite("http://127.0.0.1:8001/download/flight_reservations.db")
     return st.session_state.vn
 
@@ -127,7 +127,7 @@ def remove_training_data_cached(id):
     return vn.remove_training_data(id=id)
 
 @st.cache_data(show_spinner="Processing JSON file...", ttl=1)
-def process_json_file_cached(json_data):
+def process_json_file_cached_by_table(json_data):
     """
     Process JSON data and convert it to DDL statements.
     Each table's columns are grouped together to create a single CREATE TABLE statement.
@@ -143,14 +143,42 @@ def process_json_file_cached(json_data):
         for _, row in group.iterrows():
             col_name = row['column_name']
             data_type = row['data_type'].strip('[]')  # Remove brackets from data type
-            description = row['description']
-            
+            description = "Description:" + row['description'] if row['description'] != 'nan' else ''
+            usage = "Usage:" + row['usage'] if row['usage'] != 'nan' else ''
+            connective = ','
+
             # Create column definition with comment
-            col_def = f"{col_name} {data_type} COMMENT '{description}'"
+            col_def = f"{col_name} {data_type} COMMENT '{description}{connective}{usage}'"
             column_defs.append(col_def)
         
         # Create the full CREATE TABLE statement
         ddl = f"CREATE TABLE {table_name} (\n  " + ",\n  ".join(column_defs) + "\n);"
         ddl_statements.append(ddl)
     
+    return ddl_statements
+
+
+@st.cache_data(show_spinner="Processing JSON file...", ttl=1)
+def process_json_file_cached(json_data):
+    """
+    Process JSON data and convert each record to a DDL statement.
+    Each JSON entry is converted to an individual ALTER TABLE statement
+    that adds a column with a comment.
+    """
+    # Convert JSON to DataFrame
+    df = pd.DataFrame(json_data)
+
+    ddl_statements = []
+    for _, row in df.iterrows():
+        table_name = row['table_name']
+        column_name = row['column_name']
+        data_type = row['data_type'].strip('[]')  # Remove brackets from data type
+        description = "Description:" + row['description'] if row['description'] != 'nan' else ''
+        usage = "Usage:" + row['usage'] if row['usage'] != 'nan' else ''
+        connective = ','
+
+        # Create an ALTER TABLE statement for each column
+        ddl = f"ALTER TABLE {table_name} ADD COLUMN {column_name} {data_type} COMMENT '{description}{connective}{usage}';"
+        ddl_statements.append(ddl)
+
     return ddl_statements
