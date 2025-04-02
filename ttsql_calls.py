@@ -1,11 +1,12 @@
 import streamlit as st
-
+import json
+import pandas as pd
 from src.ttsql.local import LocalContext_Ollama
 
 @st.cache_resource(ttl=3600)
 def setup_ttsql():
     if "vn" not in st.session_state:
-        st.session_state.vn = LocalContext_Ollama(config={"model": "gemma3", "path": "chroma"})
+        st.session_state.vn = LocalContext_Ollama(config={"model": "mt2sl", "path": "chroma"})
         st.session_state.vn.connect_to_sqlite("http://127.0.0.1:8001/download/flight_reservations.db")
     return st.session_state.vn
 
@@ -84,3 +85,32 @@ def add_documentation_cached(documentation):
 def remove_training_data_cached(id):
     vn = setup_ttsql()
     return vn.remove_training_data(id=id)
+
+@st.cache_data(show_spinner="Processing JSON file...", ttl=1)
+def process_json_file_cached(json_data):
+    """
+    Process JSON data and convert it to DDL statements.
+    Each table's columns are grouped together to create a single CREATE TABLE statement.
+    """
+    # Convert JSON to DataFrame
+    df = pd.DataFrame(json_data)
+    
+    # Group by table_name to create DDL statements
+    ddl_statements = []
+    for table_name, group in df.groupby('table_name'):
+        # Create column definitions
+        column_defs = []
+        for _, row in group.iterrows():
+            col_name = row['column_name']
+            data_type = row['data_type'].strip('[]')  # Remove brackets from data type
+            description = row['description']
+            
+            # Create column definition with comment
+            col_def = f"{col_name} {data_type} COMMENT '{description}'"
+            column_defs.append(col_def)
+        
+        # Create the full CREATE TABLE statement
+        ddl = f"CREATE TABLE {table_name} (\n  " + ",\n  ".join(column_defs) + "\n);"
+        ddl_statements.append(ddl)
+    
+    return ddl_statements
