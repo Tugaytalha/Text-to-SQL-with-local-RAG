@@ -90,7 +90,7 @@ class VannaBase(ABC):
 
         return f"Respond in the {self.language} language."
 
-    def generate_sql(self, question: str, allow_llm_to_see_data=False, **kwargs) -> str:
+    def generate_sql(self, question: str, allow_llm_to_see_data=False, question_sql_list=None, ddl_list=None, doc_list=None, **kwargs) -> str:
         """
         Example:
         ```python
@@ -121,9 +121,12 @@ class VannaBase(ABC):
             initial_prompt = self.config.get("initial_prompt", None)
         else:
             initial_prompt = None
-        question_sql_list = self.get_similar_question_sql(question, **kwargs)
-        ddl_list = self.get_related_ddl(question, **kwargs)
-        doc_list = self.get_related_documentation(question, **kwargs)
+        if question_sql_list is None:    
+            question_sql_list = self.get_similar_question_sql(question, **kwargs)
+        if ddl_list is None:
+            ddl_list = self.get_related_ddl(question, **kwargs)
+        if doc_list is None:
+            doc_list = self.get_related_documentation(question, **kwargs)
         prompt = self.get_sql_prompt(
             initial_prompt=initial_prompt,
             question=question,

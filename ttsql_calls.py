@@ -21,6 +21,38 @@ def generate_sql_cached(question: str):
     vn = setup_ttsql()
     return vn.generate_sql(question=question, allow_llm_to_see_data=True)
 
+@st.cache_data(show_spinner="Getting SQL and retrieved chunks...")
+def generate_sql_and_get_chunks_cached(question: str):
+    """
+    Get both the SQL query and the retrieved chunks used to generate it.
+    Returns a tuple of (sql, chunks) where chunks is a dict containing:
+    - question_sql_list: List of similar question-SQL pairs
+    - ddl_list: List of related DDL statements
+    - doc_list: List of related documentation
+    """
+    vn = setup_ttsql()
+    
+    # Get similar questions and their SQL
+    question_sql_list = vn.get_similar_question_sql(question)
+    
+    # Get related DDL statements
+    ddl_list = vn.get_related_ddl(question)
+    
+    # Get related documentation
+    doc_list = vn.get_related_documentation(question)
+    
+    # Generate the SQL query
+    sql = vn.generate_sql(question=question, allow_llm_to_see_data=True, question_sql_list=question_sql_list, ddl_list=ddl_list, doc_list=doc_list)
+    
+    # Package the chunks
+    chunks = {
+        "question_sql_list": question_sql_list,
+        "ddl_list": ddl_list,
+        "doc_list": doc_list
+    }
+    
+    return sql, chunks
+
 @st.cache_data(show_spinner="Checking for valid SQL ...")
 def is_sql_valid_cached(sql: str):
     vn = setup_ttsql()
@@ -42,6 +74,14 @@ def generate_plotly_code_cached(question, sql, df):
     code = vn.generate_plotly_code(question=question, sql=sql, df=df)
     return code
 
+@st.cache_data(show_spinner="Getting retrieved chunks...")
+def get_retrieved_chunks_cached(question: str):
+    """
+    Get the chunks of information retrieved from the vector database for a given question.
+    This includes DDL statements, documentation, and question-SQL pairs that are relevant to the query.
+    """
+    vn = setup_ttsql()
+    return vn.get_retrieved_chunks(question=question)
 
 @st.cache_data(show_spinner="Running Plotly code ...")
 def generate_plot_cached(code, df):

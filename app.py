@@ -17,7 +17,9 @@ from ttsql_calls import (
     add_ddl_cached,
     add_documentation_cached,
     remove_training_data_cached,
-    process_json_file_cached
+    process_json_file_cached,
+    get_retrieved_chunks_cached,
+    generate_sql_and_get_chunks_cached
 )
 
 avatar_url = "https://play-lh.googleusercontent.com/27WE_FCTH2aJh0mzYmPYgQp6ZdmZK27Vyf2ER_o9862cAE2L_tWikyx9qsMntI3Nbw"
@@ -29,7 +31,6 @@ st.title("Albaraka Text2SQL")
 tab1, tab2 = st.tabs(["Query Interface", "Database Management"])
 
 with tab1:
-
     st.sidebar.title("Output Settings")
     st.sidebar.checkbox("Show SQL", value=True, key="show_sql")
     st.sidebar.checkbox("Show Table", value=True, key="show_table")
@@ -37,14 +38,11 @@ with tab1:
     st.sidebar.checkbox("Show Chart", value=True, key="show_chart")
     st.sidebar.checkbox("Show Summary", value=True, key="show_summary")
     st.sidebar.checkbox("Show Follow-up Questions", value=True, key="show_followup")
+    st.sidebar.checkbox("Show Retrieved Chunks", value=False, key="show_chunks")
     st.sidebar.button("Reset", on_click=lambda: set_question(None), use_container_width=True)
-
-
-    # st.sidebar.write(st.session_state)
 
     def set_question(question):
         st.session_state["my_question"] = question
-
 
     assistant_message_suggested = st.chat_message(
         "assistant", avatar=avatar_url
@@ -67,14 +65,38 @@ with tab1:
             "Ask me a question about your data",
         )
 
-
     if my_question:
         st.session_state["my_question"] = my_question
         user_message = st.chat_message("user")
         user_message.write(f"{my_question}")
 
+
         # Generate SQL
-        sql = generate_sql_cached(question=my_question)
+        sql, chunks = generate_sql_and_get_chunks_cached(question=my_question)
+
+        if st.session_state.get("show_chunks", False):
+            if chunks:
+                chunks_message = st.chat_message("assistant", avatar=avatar_url)
+                chunks_message.subheader("Retrieved Context")
+                
+                # Display similar questions and their SQL
+                if chunks["question_sql_list"]:
+                    with chunks_message.expander("Similar Questions and SQL"):
+                        for i, qs in enumerate(chunks["question_sql_list"], 1):
+                            st.markdown(f"**Similar Question {i}:** {qs['question']}")
+                            st.markdown(f"**SQL:**\n```sql\n{qs['sql']}\n```")
+                
+                # Display related DDL statements
+                if chunks["ddl_list"]:
+                    with chunks_message.expander("Related DDL Statements"):
+                        for i, ddl in enumerate(chunks["ddl_list"], 1):
+                            st.markdown(f"**DDL {i}:**\n```sql\n{ddl}\n```")
+                
+                # Display related documentation
+                if chunks["doc_list"]:
+                    with chunks_message.expander("Related Documentation"):
+                        for i, doc in enumerate(chunks["doc_list"], 1):
+                            st.markdown(f"**Documentation {i}:**\n{doc}")
 
         if sql:
             if is_sql_valid_cached(sql=sql):
