@@ -1,5 +1,6 @@
 import time
 import streamlit as st
+import json
 from ttsql_calls import (
     generate_questions_cached,
     generate_sql_cached,
@@ -15,7 +16,8 @@ from ttsql_calls import (
     add_question_sql_cached,
     add_ddl_cached,
     add_documentation_cached,
-    remove_training_data_cached
+    remove_training_data_cached,
+    process_json_file_cached
 )
 
 avatar_url = "https://play-lh.googleusercontent.com/27WE_FCTH2aJh0mzYmPYgQp6ZdmZK27Vyf2ER_o9862cAE2L_tWikyx9qsMntI3Nbw"
@@ -64,6 +66,7 @@ with tab1:
         my_question = st.chat_input(
             "Ask me a question about your data",
         )
+
 
     if my_question:
         st.session_state["my_question"] = my_question
@@ -117,7 +120,7 @@ with tab1:
                 if chart_should_be_generated:
                     # Only generate plotly code if we need to show either the chart or the code
                     code = generate_plotly_code_cached(question=my_question, sql=sql, df=df)
-
+                    
                     # Only show plotly code if the option is enabled
                     if st.session_state.get("show_plotly_code", False) and code is not None and code != "":
                         assistant_message_plotly_code = st.chat_message(
@@ -178,13 +181,13 @@ with tab1:
 # Database Management Tab
 with tab2:
     st.title("Database Management")
-
+    
     # Initialize the Text-to-SQL model
     vn = setup_ttsql()
-
+    
     # Create three columns for the training data types
     col1, col2, col3 = st.columns(3)
-
+    
     with col1:
         st.subheader("Add Question-SQL Pair")
         question_input = st.text_area("Question", height=100, key="question_sql_pair")
@@ -200,7 +203,7 @@ with tab2:
                 st.session_state["training_data"] = get_training_data_cached()
             else:
                 st.error("Both Question and SQL Query are required.")
-
+    
     with col2:
         st.subheader("Add DDL")
         ddl_input = st.text_area("DDL Statement", height=250, key="ddl_input")
@@ -214,7 +217,7 @@ with tab2:
                 st.session_state["training_data"] = get_training_data_cached()
             else:
                 st.error("DDL Statement is required.")
-
+    
     with col3:
         st.subheader("Add Documentation")
         doc_input = st.text_area("Documentation", height=250, key="doc_input")
@@ -228,18 +231,57 @@ with tab2:
                 st.session_state["training_data"] = get_training_data_cached()
             else:
                 st.error("Documentation is required.")
-
+    
+    # Add JSON Upload Section
+    st.subheader("Upload JSON Schema")
+    uploaded_file = st.file_uploader("Choose a JSON file", type=['json'])
+    
+    if uploaded_file is not None:
+        try:
+            # Read and parse JSON file
+            json_data = json.load(uploaded_file)
+            
+            # Process the JSON data and convert to DDL statements
+            ddl_statements = process_json_file_cached(json_data)
+            
+            # Display the generated DDL statements
+            st.subheader("Generated DDL Statements")
+            for i, ddl in enumerate(ddl_statements):
+                st.code(ddl, language="sql", line_numbers=True)
+            
+            # Add a button to add all DDL statements
+            if st.button("Add All DDL Statements"):
+                success_count = 0
+                for ddl in ddl_statements:
+                    try:
+                        id = add_ddl_cached(ddl=ddl)
+                        success_count += 1
+                    except Exception as e:
+                        st.error(f"Error adding DDL statement: {str(e)}")
+                
+                if success_count > 0:
+                    st.success(f"Successfully added {success_count} DDL statements")
+                    # Refresh training data
+                    st.session_state["training_data"] = get_training_data_cached()
+                else:
+                    st.error("Failed to add any DDL statements")
+        
+        except json.JSONDecodeError:
+            st.error("Invalid JSON file. Please check the file format.")
+        except Exception as e:
+            st.error(f"Error processing file: {str(e)}")
+    
     # Display Training Data
     st.subheader("Training Data")
     if st.button("Refresh Training Data"):
         st.session_state["training_data"] = get_training_data_cached()
-
+    
     # Initialize or get training data from session state
     if "training_data" not in st.session_state:
         st.session_state["training_data"] = get_training_data_cached()
-
+    
     training_data = st.session_state["training_data"]
-
+    
     # Display training data with delete buttons
     if not training_data.empty:
         # Add a delete button column
