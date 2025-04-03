@@ -12,7 +12,7 @@ from ttsql_calls import (
     is_sql_valid_cached,
     generate_summary_cached,
     setup_ttsql,
-    get_training_data_cached,
+    get_training_data,
     add_question_sql_cached,
     add_ddl_cached,
     add_documentation_cached,
@@ -222,7 +222,7 @@ with tab2:
                 st.session_state["question_sql_pair"] = ""
                 st.session_state["sql_input"] = ""
                 # Refresh training data
-                st.session_state["training_data"] = get_training_data_cached()
+                st.session_state["training_data"] = get_training_data()
             else:
                 st.error("Both Question and SQL Query are required.")
     
@@ -236,7 +236,7 @@ with tab2:
                 # Clear input after successful addition
                 st.session_state["ddl_input"] = ""
                 # Refresh training data
-                st.session_state["training_data"] = get_training_data_cached()
+                st.session_state["training_data"] = get_training_data()
             else:
                 st.error("DDL Statement is required.")
     
@@ -250,7 +250,7 @@ with tab2:
                 # Clear input after successful addition
                 st.session_state["doc_input"] = ""
                 # Refresh training data
-                st.session_state["training_data"] = get_training_data_cached()
+                st.session_state["training_data"] = get_training_data()
             else:
                 st.error("Documentation is required.")
     
@@ -284,7 +284,7 @@ with tab2:
                 if success_count > 0:
                     st.success(f"Successfully added {success_count} DDL statements")
                     # Refresh training data
-                    st.session_state["training_data"] = get_training_data_cached()
+                    st.session_state["training_data"] = get_training_data()
                 else:
                     st.error("Failed to add any DDL statements")
         
@@ -296,11 +296,11 @@ with tab2:
     # Display Training Data
     st.subheader("Training Data")
     if st.button("Refresh Training Data"):
-        st.session_state["training_data"] = get_training_data_cached()
+        st.session_state["training_data"] = get_training_data()
     
     # Initialize or get training data from session state
     if "training_data" not in st.session_state:
-        st.session_state["training_data"] = get_training_data_cached()
+        st.session_state["training_data"] = get_training_data()
     
     training_data = st.session_state["training_data"]
     
@@ -319,7 +319,6 @@ with tab2:
                     if remove_training_data_cached(id=row['id']):
                         st.success(f"Deleted {row['id']}")
                         # Refresh training data
-                        st.session_state["training_data"] = get_training_data_cached()
-                        st.experimental_rerun()
+                        st.session_state["training_data"] = get_training_data()
     else:
         st.info("No training data available.")

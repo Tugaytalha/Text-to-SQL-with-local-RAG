@@ -9,7 +9,10 @@ from chromadb.utils import embedding_functions
 from ..base import VannaBase
 from ..utils import deterministic_uuid
 
-default_ef = embedding_functions.DefaultEmbeddingFunction()
+default_ef = embedding_functions.SentenceTransformerEmbeddingFunction(
+    model_name="intfloat/multilingual-e5-large-instruct"
+)
+
 
 
 class ChromaDB_VectorStore(VannaBase):
