@@ -8,7 +8,7 @@ from src.ttsql.local import LocalContext_Ollama
 @st.cache_resource(ttl=3600)
 def setup_ttsql():
     if "vn" not in st.session_state:
-        st.session_state.vn = LocalContext_Ollama(config={"model": "mannix/defog-llama3-sqlcoder-8b", "path": "chroma"})
+        st.session_state.vn = LocalContext_Ollama(config={"model": "hf.co/tensorblock/sqlcoder-70b-alpha-GGUF:Q4_K_M", "path": "chroma"})
         st.session_state.vn.connect_to_sqlite("http://127.0.0.1:8001/download/flight_reservations.db")
     return st.session_state.vn
 

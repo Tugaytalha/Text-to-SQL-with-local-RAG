@@ -584,7 +584,7 @@ class VannaBase(ABC):
         """
 
         ddls = ""
-        for i in ddls:
+        for i in ddl_list:
             ddls += i
 
         instructions = """
