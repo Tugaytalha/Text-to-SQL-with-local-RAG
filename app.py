@@ -19,7 +19,8 @@ from ttsql_calls import (
     remove_training_data_cached,
     process_json_file_cached,
     get_retrieved_chunks_cached,
-    generate_sql_and_get_chunks_cached
+    generate_sql_and_get_chunks_cached,
+    remove_collection_cached,
 )
 
 avatar_url = "https://play-lh.googleusercontent.com/27WE_FCTH2aJh0mzYmPYgQp6ZdmZK27Vyf2ER_o9862cAE2L_tWikyx9qsMntI3Nbw"
@@ -208,7 +209,7 @@ with tab2:
     vn = setup_ttsql()
     
     # Create three columns for the training data types
-    col1, col2, col3 = st.columns(3)
+    col1, col2, col3, col4 = st.columns(4)
     
     with col1:
         st.subheader("Add Question-SQL Pair")
@@ -255,8 +256,9 @@ with tab2:
                 st.error("Documentation is required.")
     
     # Add JSON Upload Section
-    st.subheader("Upload JSON Schema")
-    uploaded_file = st.file_uploader("Choose a JSON file", type=['json'])
+    with col4:
+        st.subheader("Upload JSON Schema")
+        uploaded_file = st.file_uploader("Choose a JSON file", type=['json'])
     
     if uploaded_file is not None:
         try:
@@ -297,7 +299,48 @@ with tab2:
     st.subheader("Training Data")
     if st.button("Refresh Training Data"):
         st.session_state["training_data"] = get_training_data()
-    
+
+    # Add custom CSS for red buttons
+    st.markdown("""
+        <style>
+            .red-button {
+                background-color: #ff4d4d;
+                color: white;
+                border: none;
+                padding: 0.5em 1em;
+                border-radius: 0.25em;
+                font-size: 1em;
+                cursor: pointer;
+                margin: 0.25em 0;
+            }
+        </style>
+    """, unsafe_allow_html=True)
+
+    # Use st.columns to create space for each button
+    col1, col2, col3, col4, _, _, _, _ = st.columns(8)
+
+    # with col1:
+    #     if st.markdown('<form action="?delete_all" method="post"><button class="red-button">Delete All</button></form>', unsafe_allow_html=True):
+    #         remove_collection_cached("sql")
+    #         remove_collection_cached("ddl")
+    #         remove_collection_cached("documentation")
+    #         st.session_state["training_data"] = get_training_data()
+    #
+    # with col2:
+    #     if st.markdown('<form action="?delete_sql" method="post"><button class="red-button">Delete SQLs </button></form>', unsafe_allow_html=True):
+    #         remove_collection_cached("sql")
+    #         st.session_state["training_data"] = get_training_data()
+    #
+    # with col3:
+    #     if st.markdown('<form action="?delete_ddl" method="post"><button class="red-button">Delete DDLs</button></form>', unsafe_allow_html=True):
+    #         remove_collection_cached("ddl")
+    #         st.session_state["training_data"] = get_training_data()
+    #
+    # with col4:
+    #     if st.markdown('<form action="?delete_doc" method="post"><button class="red-button">Delete Documentations</button></form>', unsafe_allow_html=True):
+    #         remove_collection_cached("documentation")
+    #         st.session_state["training_data"] = get_training_data()
+
     # Initialize or get training data from session state
     if "training_data" not in st.session_state:
         st.session_state["training_data"] = get_training_data()

@@ -200,3 +200,9 @@ def process_json_file_cached(json_data):
         ddl_statements.append(ddl)
 
     return ddl_statements
+
+
+@st.cache_data(show_spinner="Removing collection...", ttl=1)
+def remove_collection_cached(collection_name):
+    vn = setup_ttsql()
+    vn.remove_collection(collection_name=collection_name)
