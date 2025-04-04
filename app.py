@@ -115,6 +115,10 @@ with tab1:
                 assistant_message.write(sql)
                 st.stop()
 
+            # Embedding visualization as a graph
+
+
+
             # Run SQL (this is always needed for subsequent operations)
             df = run_sql_cached(sql=sql)
 
