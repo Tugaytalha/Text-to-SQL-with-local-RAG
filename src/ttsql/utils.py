@@ -6,6 +6,9 @@ from typing import Union
 
 from .exceptions import ImproperlyConfigured, ValidationError
 
+import matplotlib.pyplot as plt
+import umap
+
 
 def validate_config_path(path):
     if not os.path.exists(path):
