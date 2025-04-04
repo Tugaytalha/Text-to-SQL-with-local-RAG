@@ -318,7 +318,8 @@ class ChromaDB_VectorStore(VannaBase):
         reranked_chunks = []
 
         # Rerank the chunks
-        if reranker_dict[reranker_list[reranker_index]] == RerankerType.AutoModelForSequenceClassification:
+        if reranker_dict[reranker_list[
+            reranker_index]] == RerankerType.AutoModelForSequenceClassification:
 
             model = AutoModelForSequenceClassification.from_pretrained(
                 reranker_list[reranker_index],
@@ -341,6 +342,35 @@ class ChromaDB_VectorStore(VannaBase):
             )
 
             reranked_chunks = [chunk for chunk, _ in sorted_chunks]
+        elif reranker_dict[reranker_list[
+            reranker_index]] == RerankerType.AutoTokenizer_AutoModelForSequenceClassification_Wno_grad:
+
+            tokenizer = AutoTokenizer.from_pretrained(
+                reranker_list[reranker_index])
+            model = AutoModelForSequenceClassification.from_pretrained(
+                reranker_list[reranker_index],
+                torch_dtype=torch.float16 if reranker_list[
+                                                 reranker_index] == "Alibaba-NLP/gte-multilingual-reranker-base" else "auto",
+                trust_remote_code=True,
+            )
+            model.eval()
+
+            # Construct sentence pairs
+            sentence_pairs = [[question, chunk] for chunk in chunks]
+
+            with torch.no_grad():
+                inputs = tokenizer(sentence_pairs, padding=True, truncation=True,
+                                   return_tensors='pt', max_length=512)
+                scores = model(**inputs, return_dict=True).logits.view(
+                    -1, ).float()
+
+                # Sort the chunks
+                sorted_chunks = sorted(
+                    zip(chunks, scores), key=lambda x: x[1], reverse=True
+                )
+
+                reranked_chunks = [chunk for chunk, _ in sorted_chunks]
+
         return reranked_chunks
 
     def get_similar_question_sql(self, question: str, **kwargs) -> list:
