@@ -1,9 +1,10 @@
 import json
 import pandas as pd
+import numpy as np
 import streamlit as st
 
 from src.ttsql.local import LocalContext_Ollama
-
+from src.ttsql.utils import visualize_query_embeddings
 
 @st.cache_resource(ttl=3600)
 def setup_ttsql():
@@ -28,11 +29,12 @@ def generate_sql_cached(question: str):
 @st.cache_data(show_spinner="Getting SQL and retrieved chunks...")
 def generate_sql_and_get_chunks_cached(question: str):
     """
-    Get both the SQL query and the retrieved chunks used to generate it.
+    Get the SQL query and the retrieved chunks used to generate it.
     Returns a tuple of (sql, chunks) where chunks is a dict containing:
     - question_sql_list: List of similar question-SQL pairs
     - ddl_list: List of related DDL statements
     - doc_list: List of related documentation
+    - retrieved_embeddings: A numpy array of embeddings for the retrieved chunks
     """
     vn = setup_ttsql()
 
@@ -45,15 +47,35 @@ def generate_sql_and_get_chunks_cached(question: str):
     # Get related documentation
     doc_list = vn.get_related_documentation(question)
 
-    # Generate the SQL query
+    # --- Generate embeddings for retrieved chunks ---
+    retrieved_texts = []
+    if question_sql_list:
+        # Embed the question part of the pair as it's closer to the user query
+        retrieved_texts.extend([qs['question'] for qs in question_sql_list])
+        # Alternatively, embed the combined JSON string if that's what's stored
+        # retrieved_texts.extend([json.dumps(qs) for qs in question_sql_list])
+    if ddl_list:
+        retrieved_texts.extend(ddl_list)
+    if doc_list:
+        retrieved_texts.extend(doc_list)
+
+    retrieved_embeddings = []
+    if retrieved_texts:
+        # Use the embedding function directly from the vn instance
+        retrieved_embeddings = vn.embedding_function(retrieved_texts)
+
+    # ----------------------------------------------
+
+    # Generate the SQL query using the retrieved context
     sql = vn.generate_sql(question=question, allow_llm_to_see_data=True, question_sql_list=question_sql_list,
                           ddl_list=ddl_list, doc_list=doc_list)
 
-    # Package the chunks
+    # Package the chunks and their embeddings
     chunks = {
         "question_sql_list": question_sql_list,
         "ddl_list": ddl_list,
-        "doc_list": doc_list
+        "doc_list": doc_list,
+        "retrieved_embeddings": np.array(retrieved_embeddings) # Store as numpy array
     }
 
     return sql, chunks
@@ -118,6 +140,57 @@ def generate_summary_cached(question, df):
 def get_training_data():
     vn = setup_ttsql()
     return vn.get_training_data()
+
+
+@st.cache_data(show_spinner="Loading all embeddings...")
+def get_all_embeddings_cached():
+    """
+    Retrieves all embeddings from the vector store.
+    """
+    vn = setup_ttsql()
+    return vn.get_all_embeddings()
+
+
+# No cache needed here as it depends on runtime data (query) and creates a file
+def generate_visualization(query: str, chunks: dict):
+    """
+    Generates and saves the embedding visualization plot.
+
+    Args:
+        query (str): The user's query.
+        chunks (dict): The dictionary containing retrieved chunks and their embeddings.
+
+    Returns:
+        str: Path to the saved visualization image, or None.
+    """
+    vn = setup_ttsql()
+    try:
+        # 1. Get Query Embedding
+        # Use the embedding function directly for consistency
+        query_embedding = vn.embedding_function([query])[0]
+        query_embedding = np.array(query_embedding)
+
+        # 2. Get All Chunk Embeddings
+        all_chunk_embeddings = get_all_embeddings_cached()
+        if all_chunk_embeddings.size == 0:
+             st.warning("No embeddings found in the database to visualize.")
+             return None
+
+        # 3. Get Retrieved Embeddings (already calculated)
+        retrieved_embeddings = chunks.get("retrieved_embeddings", np.array([]))
+
+        # 4. Generate Visualization
+        visualization_path = visualize_query_embeddings(
+            query=query,
+            query_embedding=query_embedding,
+            all_chunk_embeddings=all_chunk_embeddings,
+            retrieved_embeddings=retrieved_embeddings
+        )
+        return visualization_path
+
+    except Exception as e:
+        st.error(f"Failed to generate visualization: {e}")
+        return None
 
 
 @st.cache_data(show_spinner="Adding question-SQL pair...", ttl=1)

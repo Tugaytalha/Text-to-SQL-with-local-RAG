@@ -3,7 +3,7 @@ import streamlit as st
 import json
 from ttsql_calls import (
     generate_questions_cached,
-    generate_sql_cached,
+    # generate_sql_cached,
     run_sql_cached,
     generate_plotly_code_cached,
     generate_plot_cached,
@@ -18,9 +18,14 @@ from ttsql_calls import (
     add_documentation_cached,
     remove_training_data_cached,
     process_json_file_cached,
-    get_retrieved_chunks_cached,
+    # get_retrieved_chunks_cached,
     generate_sql_and_get_chunks_cached,
     remove_collection_cached,
+    generate_visualization,
+)
+
+from .src.ttsql.utils import (
+    visualize_query_embeddings,
 )
 
 avatar_url = "https://play-lh.googleusercontent.com/27WE_FCTH2aJh0mzYmPYgQp6ZdmZK27Vyf2ER_o9862cAE2L_tWikyx9qsMntI3Nbw"
@@ -33,13 +38,14 @@ tab1, tab2 = st.tabs(["Query Interface", "Database Management"])
 
 with tab1:
     st.sidebar.title("Output Settings")
+    st.sidebar.checkbox("Show Retrieved Chunks", value=True, key="show_chunks")
     st.sidebar.checkbox("Show SQL", value=True, key="show_sql")
-    st.sidebar.checkbox("Show Table", value=True, key="show_table")
+    st.sidebar.checkbox("Show Embedding Visualization", value=True, key="show_viz")
+    st.sidebar.checkbox("Show Table", value=False, key="show_table")
     st.sidebar.checkbox("Show Plotly Code", value=False, key="show_plotly_code")
-    st.sidebar.checkbox("Show Chart", value=True, key="show_chart")
-    st.sidebar.checkbox("Show Summary", value=True, key="show_summary")
-    st.sidebar.checkbox("Show Follow-up Questions", value=True, key="show_followup")
-    st.sidebar.checkbox("Show Retrieved Chunks", value=False, key="show_chunks")
+    st.sidebar.checkbox("Show Chart", value=False, key="show_chart")
+    st.sidebar.checkbox("Show Summary", value=False, key="show_summary")
+    st.sidebar.checkbox("Show Follow-up Questions", value=False, key="show_followup")
     st.sidebar.button("Reset", on_click=lambda: set_question(None), use_container_width=True)
 
 
@@ -76,29 +82,34 @@ with tab1:
         # Generate SQL
         sql, chunks = generate_sql_and_get_chunks_cached(question=my_question)
 
+        # Show the Retrieved chunks
         if st.session_state.get("show_chunks", False):
-            if chunks:
+            # Check if chunks dictionary is not None and has content
+            if chunks and (chunks.get("question_sql_list") or chunks.get("ddl_list") or chunks.get("doc_list")):
                 chunks_message = st.chat_message("assistant", avatar=avatar_url)
                 chunks_message.subheader("Retrieved Context")
 
                 # Display similar questions and their SQL
-                if chunks["question_sql_list"]:
+                if chunks.get("question_sql_list"):
                     with chunks_message.expander("Similar Questions and SQL"):
                         for i, qs in enumerate(chunks["question_sql_list"], 1):
                             st.markdown(f"**Similar Question {i}:** {qs['question']}")
                             st.markdown(f"**SQL:**\n```sql\n{qs['sql']}\n```")
 
                 # Display related DDL statements
-                if chunks["ddl_list"]:
+                if chunks.get("ddl_list"):
                     with chunks_message.expander("Related DDL Statements"):
                         for i, ddl in enumerate(chunks["ddl_list"], 1):
                             st.markdown(f"**DDL {i}:**\n```sql\n{ddl}\n```")
 
                 # Display related documentation
-                if chunks["doc_list"]:
+                if chunks.get("doc_list"):
                     with chunks_message.expander("Related Documentation"):
                         for i, doc in enumerate(chunks["doc_list"], 1):
                             st.markdown(f"**Documentation {i}:**\n{doc}")
+            elif st.session_state.get("show_chunks"):  # Only show message if checkbox is ticked
+                chunks_message = st.chat_message("assistant", avatar=avatar_url)
+                chunks_message.info("No relevant context was retrieved from the database for this query.")
 
         if sql:
             if is_sql_valid_cached(sql=sql):
@@ -117,6 +128,19 @@ with tab1:
                 st.stop()
 
             # Embedding visualization as a graph
+            if st.session_state.get("show_viz", False):
+                viz_message = st.chat_message("assistant", avatar=avatar_url)
+                with viz_message:  # Use 'with' to keep spinner within the message
+                    with st.spinner("Generating embedding visualization..."):
+                        visualization_path = generate_visualization(my_question, chunks)
+                        if visualization_path:
+                            st.image(visualization_path, caption="Query and Chunk Embeddings (UMAP Projection)")
+                        else:
+                            # Display message only if visualization failed or was skipped
+                            if chunks and chunks.get(
+                                    "retrieved_embeddings") is not None:  # Check if chunks were actually processed
+                                st.warning(
+                                    "Could not generate embedding visualization (check console/logs for details). This might happen if there are too few data points in the database.")
 
             # Run SQL (this is always needed for subsequent operations)
             df = run_sql_cached(sql=sql)
