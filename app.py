@@ -42,8 +42,10 @@ with tab1:
     st.sidebar.checkbox("Show Retrieved Chunks", value=False, key="show_chunks")
     st.sidebar.button("Reset", on_click=lambda: set_question(None), use_container_width=True)
 
+
     def set_question(question):
         st.session_state["my_question"] = question
+
 
     assistant_message_suggested = st.chat_message(
         "assistant", avatar=avatar_url
@@ -71,7 +73,6 @@ with tab1:
         user_message = st.chat_message("user")
         user_message.write(f"{my_question}")
 
-
         # Generate SQL
         sql, chunks = generate_sql_and_get_chunks_cached(question=my_question)
 
@@ -79,20 +80,20 @@ with tab1:
             if chunks:
                 chunks_message = st.chat_message("assistant", avatar=avatar_url)
                 chunks_message.subheader("Retrieved Context")
-                
+
                 # Display similar questions and their SQL
                 if chunks["question_sql_list"]:
                     with chunks_message.expander("Similar Questions and SQL"):
                         for i, qs in enumerate(chunks["question_sql_list"], 1):
                             st.markdown(f"**Similar Question {i}:** {qs['question']}")
                             st.markdown(f"**SQL:**\n```sql\n{qs['sql']}\n```")
-                
+
                 # Display related DDL statements
                 if chunks["ddl_list"]:
                     with chunks_message.expander("Related DDL Statements"):
                         for i, ddl in enumerate(chunks["ddl_list"], 1):
                             st.markdown(f"**DDL {i}:**\n```sql\n{ddl}\n```")
-                
+
                 # Display related documentation
                 if chunks["doc_list"]:
                     with chunks_message.expander("Related Documentation"):
@@ -116,8 +117,6 @@ with tab1:
                 st.stop()
 
             # Embedding visualization as a graph
-
-
 
             # Run SQL (this is always needed for subsequent operations)
             df = run_sql_cached(sql=sql)
@@ -147,7 +146,7 @@ with tab1:
                 if chart_should_be_generated:
                     # Only generate plotly code if we need to show either the chart or the code
                     code = generate_plotly_code_cached(question=my_question, sql=sql, df=df)
-                    
+
                     # Only show plotly code if the option is enabled
                     if st.session_state.get("show_plotly_code", False) and code is not None and code != "":
                         assistant_message_plotly_code = st.chat_message(
@@ -208,13 +207,13 @@ with tab1:
 # Database Management Tab
 with tab2:
     st.title("Database Management")
-    
+
     # Initialize the Text-to-SQL model
     vn = setup_ttsql()
-    
+
     # Create three columns for the training data types
     col1, col2, col3, col4 = st.columns(4)
-    
+
     with col1:
         st.subheader("Add Question-SQL Pair")
         question_input = st.text_area("Question", height=100, key="question_sql_pair")
@@ -230,7 +229,7 @@ with tab2:
                 st.session_state["training_data"] = get_training_data()
             else:
                 st.error("Both Question and SQL Query are required.")
-    
+
     with col2:
         st.subheader("Add DDL")
         ddl_input = st.text_area("DDL Statement", height=250, key="ddl_input")
@@ -244,7 +243,7 @@ with tab2:
                 st.session_state["training_data"] = get_training_data()
             else:
                 st.error("DDL Statement is required.")
-    
+
     with col3:
         st.subheader("Add Documentation")
         doc_input = st.text_area("Documentation", height=250, key="doc_input")
@@ -258,25 +257,25 @@ with tab2:
                 st.session_state["training_data"] = get_training_data()
             else:
                 st.error("Documentation is required.")
-    
+
     # Add JSON Upload Section
     with col4:
         st.subheader("Upload JSON Schema")
         uploaded_file = st.file_uploader("Choose a JSON file", type=['json'])
-    
+
     if uploaded_file is not None:
         try:
             # Read and parse JSON file
             json_data = json.load(uploaded_file)
-            
+
             # Process the JSON data and convert to DDL statements
             ddl_statements = process_json_file_cached(json_data)
-            
+
             # Display the generated DDL statements
             st.subheader("Generated DDL Statements")
             for i, ddl in enumerate(ddl_statements):
                 st.code(ddl, language="sql", line_numbers=True)
-            
+
             # Add a button to add all DDL statements
             if st.button("Add All DDL Statements"):
                 success_count = 0
@@ -286,19 +285,19 @@ with tab2:
                         success_count += 1
                     except Exception as e:
                         st.error(f"Error adding DDL statement: {str(e)}")
-                
+
                 if success_count > 0:
                     st.success(f"Successfully added {success_count} DDL statements")
                     # Refresh training data
                     st.session_state["training_data"] = get_training_data()
                 else:
                     st.error("Failed to add any DDL statements")
-        
+
         except json.JSONDecodeError:
             st.error("Invalid JSON file. Please check the file format.")
         except Exception as e:
             st.error(f"Error processing file: {str(e)}")
-    
+
     # Display Training Data
     st.subheader("Training Data")
     if st.button("Refresh Training Data"):
@@ -348,9 +347,9 @@ with tab2:
     # Initialize or get training data from session state
     if "training_data" not in st.session_state:
         st.session_state["training_data"] = get_training_data()
-    
+
     training_data = st.session_state["training_data"]
-    
+
     # Display training data with delete buttons
     if not training_data.empty:
         # Add a delete button column

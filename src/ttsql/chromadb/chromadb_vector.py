@@ -3,6 +3,7 @@ from typing import List
 
 import chromadb
 import pandas as pd
+import numpy as np
 from chromadb.config import Settings
 from chromadb.utils import embedding_functions
 
@@ -14,13 +15,12 @@ embedding_list = [
     "sentence-transformers/all-MiniLM-L12-v2",
     "intfloat/multilingual-e5-large-instruct",
     "jinaai/jina-embeddings-v3",
-    ]
+]
 
 default_ef = embedding_functions.SentenceTransformerEmbeddingFunction(
     model_name=embedding_list[3],
     trust_remote_code=True,
 )
-
 
 
 class ChromaDB_VectorStore(VannaBase):
@@ -33,9 +33,12 @@ class ChromaDB_VectorStore(VannaBase):
         self.embedding_function = config.get("embedding_function", default_ef)
         curr_client = config.get("client", "persistent")
         collection_metadata = config.get("collection_metadata", None)
-        self.n_results_sql = config.get("n_results_sql", config.get("n_results", 10))
-        self.n_results_documentation = config.get("n_results_documentation", config.get("n_results", 10))
-        self.n_results_ddl = config.get("n_results_ddl", config.get("n_results", 10))
+        self.n_results_sql = config.get("n_results_sql",
+                                        config.get("n_results", 10))
+        self.n_results_documentation = config.get("n_results_documentation",
+                                                  config.get("n_results", 10))
+        self.n_results_ddl = config.get("n_results_ddl",
+                                        config.get("n_results", 10))
 
         if curr_client == "persistent":
             self.chroma_client = chromadb.PersistentClient(
@@ -49,7 +52,8 @@ class ChromaDB_VectorStore(VannaBase):
             # allow providing client directly
             self.chroma_client = curr_client
         else:
-            raise ValueError(f"Unsupported client was set in config: {curr_client}")
+            raise ValueError(
+                f"Unsupported client was set in config: {curr_client}")
 
         self.documentation_collection = self.chroma_client.get_or_create_collection(
             name="documentation",
@@ -72,6 +76,42 @@ class ChromaDB_VectorStore(VannaBase):
         if len(embedding) == 1:
             return embedding[0]
         return embedding
+
+    def get_all_embeddings(self) -> np.ndarray:
+        """
+        Retrieves all embeddings from all collections (DDL, Documentation, SQL).
+
+        Returns:
+            np.ndarray: A numpy array containing all embeddings, or an empty array if none exist.
+        """
+        all_embeddings_list = []
+
+        try:
+            # Get DDL embeddings
+            ddl_data = self.ddl_collection.get(include=["embeddings"])
+            if ddl_data and ddl_data.get("embeddings"):
+                all_embeddings_list.extend(ddl_data["embeddings"])
+
+            # Get Documentation embeddings
+            doc_data = self.documentation_collection.get(
+                include=["embeddings"])
+            if doc_data and doc_data.get("embeddings"):
+                all_embeddings_list.extend(doc_data["embeddings"])
+
+            # Get SQL embeddings
+            sql_data = self.sql_collection.get(include=["embeddings"])
+            if sql_data and sql_data.get("embeddings"):
+                all_embeddings_list.extend(sql_data["embeddings"])
+
+            if not all_embeddings_list:
+                return np.empty(
+                    (0, 0))  # Return empty array if no embeddings found
+
+            return np.array(all_embeddings_list)
+
+        except Exception as e:
+            print(f"Error retrieving embeddings from ChromaDB: {e}")
+            return np.empty((0, 0))  # Return empty array on error
 
     def add_question_sql(self, question: str, sql: str, **kwargs) -> str:
         question_sql_json = json.dumps(
@@ -211,7 +251,8 @@ class ChromaDB_VectorStore(VannaBase):
         elif collection_name == "documentation":
             self.chroma_client.delete_collection(name="documentation")
             self.documentation_collection = self.chroma_client.get_or_create_collection(
-                name="documentation", embedding_function=self.embedding_function
+                name="documentation",
+                embedding_function=self.embedding_function
             )
             return True
         else:

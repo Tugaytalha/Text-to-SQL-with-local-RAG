@@ -3,11 +3,13 @@ import os
 import re
 import uuid
 from typing import Union
+import time
 
 from .exceptions import ImproperlyConfigured, ValidationError
 
 import matplotlib.pyplot as plt
 import umap
+import numpy as np
 
 
 def validate_config_path(path):
