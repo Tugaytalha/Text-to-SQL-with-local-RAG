@@ -220,8 +220,8 @@ with tab2:
                 id = add_question_sql_cached(question=question_input, sql=sql_input)
                 st.success(f"Added Question-SQL pair with ID: {id}")
                 # Clear inputs after successful addition
-                st.session_state["question_sql_pair"] = ""
-                st.session_state["sql_input"] = ""
+                # st.session_state["question_sql_pair"] = ""
+                # st.session_state["sql_input"] = ""
                 # Refresh training data
                 st.session_state["training_data"] = get_training_data()
             else:
@@ -235,7 +235,7 @@ with tab2:
                 id = add_ddl_cached(ddl=ddl_input)
                 st.success(f"Added DDL with ID: {id}")
                 # Clear input after successful addition
-                st.session_state["ddl_input"] = ""
+                # st.session_state["ddl_input"] = ""
                 # Refresh training data
                 st.session_state["training_data"] = get_training_data()
             else:
@@ -249,7 +249,7 @@ with tab2:
                 id = add_documentation_cached(documentation=doc_input)
                 st.success(f"Added Documentation with ID: {id}")
                 # Clear input after successful addition
-                st.session_state["doc_input"] = ""
+                # st.session_state["doc_input"] = ""
                 # Refresh training data
                 st.session_state["training_data"] = get_training_data()
             else:
@@ -319,27 +319,27 @@ with tab2:
     # Use st.columns to create space for each button
     col1, col2, col3, col4, _, _, _, _ = st.columns(8)
 
-    # with col1:
-    #     if st.markdown('<form action="?delete_all" method="post"><button class="red-button">Delete All</button></form>', unsafe_allow_html=True):
-    #         remove_collection_cached("sql")
-    #         remove_collection_cached("ddl")
-    #         remove_collection_cached("documentation")
-    #         st.session_state["training_data"] = get_training_data()
-    #
-    # with col2:
-    #     if st.markdown('<form action="?delete_sql" method="post"><button class="red-button">Delete SQLs </button></form>', unsafe_allow_html=True):
-    #         remove_collection_cached("sql")
-    #         st.session_state["training_data"] = get_training_data()
-    #
-    # with col3:
-    #     if st.markdown('<form action="?delete_ddl" method="post"><button class="red-button">Delete DDLs</button></form>', unsafe_allow_html=True):
-    #         remove_collection_cached("ddl")
-    #         st.session_state["training_data"] = get_training_data()
-    #
-    # with col4:
-    #     if st.markdown('<form action="?delete_doc" method="post"><button class="red-button">Delete Documentations</button></form>', unsafe_allow_html=True):
-    #         remove_collection_cached("documentation")
-    #         st.session_state["training_data"] = get_training_data()
+    with col1:
+        if st.button("Delete All", key="delete_all_training_data"):
+            remove_collection_cached("sql")
+            remove_collection_cached("ddl")
+            remove_collection_cached("documentation")
+            st.session_state["training_data"] = get_training_data()
+
+    with col2:
+        if st.button("Delete SQLs", key="delete_sql"):
+            remove_collection_cached("sql")
+            st.session_state["training_data"] = get_training_data()
+
+    with col3:
+        if st.button("Delete DDLs", key="delete_ddl"):
+            remove_collection_cached("ddl")
+            st.session_state["training_data"] = get_training_data()
+
+    with col4:
+        if st.button("Delete Documentation", key="delete_documentation"):
+            remove_collection_cached("documentation")
+            st.session_state["training_data"] = get_training_data()
 
     # Initialize or get training data from session state
     if "training_data" not in st.session_state:

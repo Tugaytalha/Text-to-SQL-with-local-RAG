@@ -9,8 +9,16 @@ from chromadb.utils import embedding_functions
 from ..base import VannaBase
 from ..utils import deterministic_uuid
 
+embedding_list = [
+    "sentence-transformers/all-MiniLM-L6-v2",
+    "sentence-transformers/all-MiniLM-L12-v2",
+    "intfloat/multilingual-e5-large-instruct",
+    "jinaai/jina-embeddings-v3",
+    ]
+
 default_ef = embedding_functions.SentenceTransformerEmbeddingFunction(
-    model_name="intfloat/multilingual-e5-large-instruct"
+    model_name=embedding_list[3],
+    trust_remote_code=True,
 )
 
 
