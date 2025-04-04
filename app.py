@@ -24,10 +24,6 @@ from ttsql_calls import (
     generate_visualization,
 )
 
-from .src.ttsql.utils import (
-    visualize_query_embeddings,
-)
-
 avatar_url = "https://play-lh.googleusercontent.com/27WE_FCTH2aJh0mzYmPYgQp6ZdmZK27Vyf2ER_o9862cAE2L_tWikyx9qsMntI3Nbw"
 
 st.set_page_config(layout="wide")

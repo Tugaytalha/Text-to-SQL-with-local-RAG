@@ -7,8 +7,18 @@ import numpy as np
 from chromadb.config import Settings
 from chromadb.utils import embedding_functions
 
+import torch
+from transformers import AutoTokenizer, AutoModelForSequenceClassification
+
 from ..base import VannaBase
 from ..utils import deterministic_uuid
+
+
+# Reranker mods class (enum)
+class RerankerType:
+    AutoModelForSequenceClassification = 1
+    AutoTokenizer_AutoModelForSequenceClassification_Wno_grad = 2
+
 
 embedding_list = [
     "sentence-transformers/all-MiniLM-L6-v2",
@@ -17,12 +27,27 @@ embedding_list = [
     "jinaai/jina-embeddings-v3",
 ]
 
+reranker_index = 0
+reranker_list = [
+    "jinaai/jina-reranker-v2-base-multilingual",
+    "BAAI/bge-reranker-v2-m3",
+    "Alibaba-NLP/gte-multilingual-reranker-base",
+]
+reranker_dict = {
+    "jinaai/jina-embeddings-v3": RerankerType.AutoModelForSequenceClassification,
+    "BAAI/bge-reranker-v2-m3": RerankerType.AutoTokenizer_AutoModelForSequenceClassification_Wno_grad,
+    "Alibaba-NLP/gte-multilingual-reranker-base": RerankerType.AutoTokenizer_AutoModelForSequenceClassification_Wno_grad,
+}
+
 default_ef = embedding_functions.SentenceTransformerEmbeddingFunction(
-    model_name=embedding_list[3],
+    model_name=embedding_list[2],
     trust_remote_code=True,
 )
 
+default_rf = ""
 
+
+# noinspection PyTypeChecker
 class ChromaDB_VectorStore(VannaBase):
     def __init__(self, config=None):
         VannaBase.__init__(self, config=config)
@@ -39,6 +64,8 @@ class ChromaDB_VectorStore(VannaBase):
                                                   config.get("n_results", 10))
         self.n_results_ddl = config.get("n_results_ddl",
                                         config.get("n_results", 10))
+        self.n_retrieval_ddl = config.get("n_retrieval_ddl",
+                                          config.get("n_results", 50))
 
         if curr_client == "persistent":
             self.chroma_client = chromadb.PersistentClient(
@@ -89,21 +116,21 @@ class ChromaDB_VectorStore(VannaBase):
         try:
             # Get DDL embeddings
             ddl_data = self.ddl_collection.get(include=["embeddings"])
-            if ddl_data and ddl_data.get("embeddings"):
+            if ddl_data is not None and ddl_data.get("embeddings") is not None:
                 all_embeddings_list.extend(ddl_data["embeddings"])
 
             # Get Documentation embeddings
             doc_data = self.documentation_collection.get(
                 include=["embeddings"])
-            if doc_data and doc_data.get("embeddings"):
+            if doc_data is not None and doc_data.get("embeddings") is not None:
                 all_embeddings_list.extend(doc_data["embeddings"])
 
             # Get SQL embeddings
             sql_data = self.sql_collection.get(include=["embeddings"])
-            if sql_data and sql_data.get("embeddings"):
+            if sql_data is not None and sql_data.get("embeddings") is not None:
                 all_embeddings_list.extend(sql_data["embeddings"])
 
-            if not all_embeddings_list:
+            if all_embeddings_list is None:
                 return np.empty(
                     (0, 0))  # Return empty array if no embeddings found
 
@@ -284,6 +311,38 @@ class ChromaDB_VectorStore(VannaBase):
 
             return documents
 
+    def rerank(self, question: str, chunks: list) -> list:
+        if len(chunks) == 0:
+            return []
+
+        reranked_chunks = []
+
+        # Rerank the chunks
+        if reranker_dict[reranker_list[reranker_index]] == RerankerType.AutoModelForSequenceClassification:
+
+            model = AutoModelForSequenceClassification.from_pretrained(
+                reranker_list[reranker_index],
+                torch_dtype="auto",
+                trust_remote_code=True,
+            )
+
+            model.to("cuda" if torch.cuda.is_available() else "cpu")
+            model.eval()
+
+            # Construct sentence pairs
+            sentence_pairs = [[question, chunk] for chunk in chunks]
+
+            # Compute scores
+            scores = model.compute_score(sentence_pairs, max_length=1024)
+
+            # Sort the chunks
+            sorted_chunks = sorted(
+                zip(chunks, scores), key=lambda x: x[1], reverse=True
+            )
+
+            reranked_chunks = [chunk for chunk, _ in sorted_chunks]
+        return reranked_chunks
+
     def get_similar_question_sql(self, question: str, **kwargs) -> list:
         return ChromaDB_VectorStore._extract_documents(
             self.sql_collection.query(
@@ -299,6 +358,19 @@ class ChromaDB_VectorStore(VannaBase):
                 n_results=self.n_results_ddl,
             )
         )
+
+    def get_related_ddl_reranked(self, question: str, **kwargs) -> list:
+        chunks = ChromaDB_VectorStore._extract_documents(
+            self.ddl_collection.query(
+                query_texts=[question],
+                n_results=self.n_retrieval_ddl,
+            )
+        )
+
+        # Rerank the chunks
+        reranked_chunks = self.rerank(question, chunks)
+
+        return reranked_chunks
 
     def get_related_documentation(self, question: str, **kwargs) -> list:
         return ChromaDB_VectorStore._extract_documents(

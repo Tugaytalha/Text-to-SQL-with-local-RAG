@@ -50,18 +50,19 @@ flowchart
 
 import json
 import os
-import pandas as pd
-import plotly
-import plotly.express as px
-import plotly.graph_objects as go
 import re
-import requests
 import sqlite3
-import sqlparse
 import traceback
 from abc import ABC, abstractmethod
 from typing import List, Tuple, Union
 from urllib.parse import urlparse
+
+import pandas as pd
+import plotly
+import plotly.express as px
+import plotly.graph_objects as go
+import requests
+import sqlparse
 
 from ..exceptions import DependencyError, ImproperlyConfigured, ValidationError
 from ..types import TrainingPlan, TrainingPlanItem
@@ -381,6 +382,23 @@ class VannaBase(ABC):
     def generate_embedding(self, data: str, **kwargs) -> List[float]:
         pass
 
+
+    @abstractmethod
+    def rerank(self, question: str, chunks: list) -> list:
+        """
+        This function is used to rerank and filter the chunks based on the question.
+
+        Args:
+            question: The question to rerank the chunks for.
+            chunks: The chunks to rerank.
+
+        Returns:
+            list: A list of chunks that are relevant to the question.
+
+        """
+        pass
+
+
     # ----------------- Use Any Database to Store and Retrieve Context ----------------- #
     @abstractmethod
     def get_similar_question_sql(self, question: str, **kwargs) -> list:
@@ -399,6 +417,19 @@ class VannaBase(ABC):
     def get_related_ddl(self, question: str, **kwargs) -> list:
         """
         This method is used to get related DDL statements to a question.
+
+        Args:
+            question (str): The question to get related DDL statements for.
+
+        Returns:
+            list: A list of related DDL statements.
+        """
+        pass
+
+    @abstractmethod
+    def get_related_ddl_reranked(self, question: str, **kwargs) -> list:
+        """
+        This method is used to get related DDL statements to a question with reranking.
 
         Args:
             question (str): The question to get related DDL statements for.
@@ -563,12 +594,12 @@ class VannaBase(ABC):
         return initial_prompt
 
     def get_sql_prompt(self,
-                            initial_prompt: str,
-                            question: str,
-                            question_sql_list: list,
-                            ddl_list: list,
-                            doc_list: list,
-                            **kwargs):
+                       initial_prompt: str,
+                       question: str,
+                       question_sql_list: list,
+                       ddl_list: list,
+                       doc_list: list,
+                       **kwargs):
         """
         This method is used to generate a prompt for the LLM to generate SQL.
 
