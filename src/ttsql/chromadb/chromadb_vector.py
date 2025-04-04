@@ -311,11 +311,27 @@ class ChromaDB_VectorStore(VannaBase):
 
             return documents
 
+    def sort_chunks(self, chunks: list, scores: list) -> list:
+        """
+        This function is used to sort the chunks based on the scores.
+
+        Args:
+            chunks: The chunks to sort.
+            scores: The similarity scores of the chunks to the question.
+
+        Returns:
+            list: A list of chunks sorted based on the scores.
+        """
+
+        sorted_chunks = sorted(zip(chunks, scores), key=lambda x: x[1], reverse=True)
+
+        return [chunk for chunk, _ in sorted_chunks]
+
     def rerank(self, question: str, chunks: list) -> list:
         if len(chunks) == 0:
             return []
 
-        reranked_chunks = []
+        scores = []
 
         # Rerank the chunks
         if reranker_dict[reranker_list[
@@ -335,15 +351,7 @@ class ChromaDB_VectorStore(VannaBase):
 
             # Compute scores
             scores = model.compute_score(sentence_pairs, max_length=1024)
-
-            # Sort the chunks
-            sorted_chunks = sorted(
-                zip(chunks, scores), key=lambda x: x[1], reverse=True
-            )
-
-            reranked_chunks = [chunk for chunk, _ in sorted_chunks]
-        elif reranker_dict[reranker_list[
-            reranker_index]] == RerankerType.AutoTokenizer_AutoModelForSequenceClassification_Wno_grad:
+        elif reranker_dict[reranker_list[reranker_index]] == RerankerType.AutoTokenizer_AutoModelForSequenceClassification_Wno_grad:
 
             tokenizer = AutoTokenizer.from_pretrained(
                 reranker_list[reranker_index])
@@ -359,19 +367,13 @@ class ChromaDB_VectorStore(VannaBase):
             sentence_pairs = [[question, chunk] for chunk in chunks]
 
             with torch.no_grad():
-                inputs = tokenizer(sentence_pairs, padding=True, truncation=True,
+                inputs = tokenizer(sentence_pairs, padding=True,
+                                   truncation=True,
                                    return_tensors='pt', max_length=512)
                 scores = model(**inputs, return_dict=True).logits.view(
                     -1, ).float()
 
-                # Sort the chunks
-                sorted_chunks = sorted(
-                    zip(chunks, scores), key=lambda x: x[1], reverse=True
-                )
-
-                reranked_chunks = [chunk for chunk, _ in sorted_chunks]
-
-        return reranked_chunks
+        return self.sort_chunks(chunks, scores)
 
     def get_similar_question_sql(self, question: str, **kwargs) -> list:
         return ChromaDB_VectorStore._extract_documents(
@@ -400,7 +402,7 @@ class ChromaDB_VectorStore(VannaBase):
         # Rerank the chunks
         reranked_chunks = self.rerank(question, chunks)
 
-        return reranked_chunks
+        return reranked_chunks[:self.n_results_ddl]
 
     def get_related_documentation(self, question: str, **kwargs) -> list:
         return ChromaDB_VectorStore._extract_documents(
