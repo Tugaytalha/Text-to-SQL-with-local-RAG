@@ -34,7 +34,7 @@ reranker_list = [
     "Alibaba-NLP/gte-multilingual-reranker-base",
 ]
 reranker_dict = {
-    "jinaai/jina-embeddings-v3": RerankerType.AutoModelForSequenceClassification,
+    "jinaai/jina-reranker-v2-base-multilingual": RerankerType.AutoModelForSequenceClassification,
     "BAAI/bge-reranker-v2-m3": RerankerType.AutoTokenizer_AutoModelForSequenceClassification_Wno_grad,
     "Alibaba-NLP/gte-multilingual-reranker-base": RerankerType.AutoTokenizer_AutoModelForSequenceClassification_Wno_grad,
 }
@@ -311,7 +311,8 @@ class ChromaDB_VectorStore(VannaBase):
 
             return documents
 
-    def sort_chunks(self, chunks: list, scores: list) -> list:
+    @staticmethod
+    def sort_chunks(chunks: list, scores: list) -> list:
         """
         This function is used to sort the chunks based on the scores.
 
@@ -328,12 +329,21 @@ class ChromaDB_VectorStore(VannaBase):
         return [chunk for chunk, _ in sorted_chunks]
 
     def rerank(self, question: str, chunks: list) -> list:
+        """
+        This function is used to rerank and filter the chunks based on the question.
+        Args:
+            question: The question to rerank the chunks for.
+            chunks: The chunks to rerank and filter by a number.
+
+        Returns:
+            list: A list of chunks that are relevant to the question.
+        """
         if len(chunks) == 0:
             return []
 
         scores = []
 
-        # Rerank the chunks
+        # Score the similarity of the chunks to the question
         if reranker_dict[reranker_list[
             reranker_index]] == RerankerType.AutoModelForSequenceClassification:
 
@@ -373,6 +383,7 @@ class ChromaDB_VectorStore(VannaBase):
                 scores = model(**inputs, return_dict=True).logits.view(
                     -1, ).float()
 
+        # Rerank the chunks based on the scores
         return self.sort_chunks(chunks, scores)
 
     def get_similar_question_sql(self, question: str, **kwargs) -> list:

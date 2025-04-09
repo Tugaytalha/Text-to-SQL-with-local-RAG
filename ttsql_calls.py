@@ -42,7 +42,7 @@ def generate_sql_and_get_chunks_cached(question: str):
     question_sql_list = vn.get_similar_question_sql(question)
 
     # Get related DDL statements
-    ddl_list = vn.get_related_ddl(question)
+    ddl_list = vn.get_related_ddl_reranked(question)
 
     # Get related documentation
     doc_list = vn.get_related_documentation(question)
