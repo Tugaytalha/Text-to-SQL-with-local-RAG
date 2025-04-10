@@ -90,7 +90,58 @@ class VannaBase(ABC):
 
         return f"Respond in the {self.language} language."
 
+    def suggest_columns_for_query(self, question: str) -> List[str]:
+        """
+        Analyzes a natural language query and suggests relevant database columns for forming a SQL query with LLM.
+
+        Identifies columns based on entity identification, time-related information, filtering conditions, and quantification.
+
+        Args:
+            question (str): The natural language query to analyze.
+
+        Returns:
+            List[str]: A list of relevant column suggestions with brief explanations.
+        """
+
+        prompt = (
+            "You are a database assistant for a text-to-SQL application. Your task is to analyze a given natural language query and "
+            "identify the columns in a database schema that are most relevant for answering the query. The schema consists of several "
+            "tables with columns that represent different types of data. You should consider the meaning of the question and return suggestions "
+            "for relevant columns that could be used to form a SQL query.\n\n"
+
+            "When providing your suggestions, include columns related to:\n"
+            "1. Entity identification – Columns that help identify entities (e.g., customers, orders, products).\n"
+            "2. Time-related information – Columns that represent time or dates (e.g., transaction date, customer registration date).\n"
+            "3. Filtering or condition-related columns – Columns that define categories or properties, which help in filtering the data (e.g., customer type, order status).\n"
+            "4. Quantification or aggregation – Columns that might be used for counting or aggregating data (e.g., number of customers, total sales).\n\n"
+
+            "Instructions:\n"
+            "For each relevant column, provide the column name and explain why it’s relevant to the query very shortly(for just better retrieval from  column names and description vectordb).\n"
+            "If you can identify possible filters or conditions in the query (such as a specific year or customer type), suggest columns that could be used for those filters.\n"
+            "If possible, suggest both direct matches (such as exact column names) and indirect associations (such as inferred columns based on context or common conventions).\n"
+            "Use the same language as the original query.\n"
+            "Separate each query with a newline.\n"
+            "Just write your answer, don't write any other text in your answers.\n"
+            "List each question on a separate line without numbering.\n\n"
+
+            "Example query: \"2024 yılında kaç tane gerçek müşteri vardır?\" (How many real customers are there in 2024?)\n\n"
+            "Your Output Should Include:\n"
+            "Müşteri numarası (Customer number) – to identify unique customers.\n"
+            "Müşteri tipi (Customer type) – to filter for 'real' customers.\n"
+            "Kayıt tarihi (Registration date) – to filter for customers in the year 2024.\n\n"
+            "Now, analyze the following query and return a list of relevant column suggestions:\n"
+            f" Query: {question}"
+        )
+
+        self.log(title="Column Generation",
+                 message=f"Column suggestion generating for \"{question}\"")
+        response_text = self.submit_prompt(prompt=prompt)
+        self.log(title="LLM Column Suggestions", message=response_text)
+
+        return response_text.split("\n")
+
     def generate_sql(self, question: str, allow_llm_to_see_data=False,
+                     suggest_columns=False,
                      question_sql_list=None, ddl_list=None, doc_list=None,
                      **kwargs) -> str:
         """
@@ -382,7 +433,6 @@ class VannaBase(ABC):
     def generate_embedding(self, data: str, **kwargs) -> List[float]:
         pass
 
-
     @abstractmethod
     def rerank(self, question: str, chunks: list) -> list:
         """
@@ -397,7 +447,6 @@ class VannaBase(ABC):
 
         """
         pass
-
 
     # ----------------- Use Any Database to Store and Retrieve Context ----------------- #
     @abstractmethod
