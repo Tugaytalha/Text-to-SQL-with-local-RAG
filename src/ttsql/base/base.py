@@ -90,6 +90,29 @@ class VannaBase(ABC):
 
         return f"Respond in the {self.language} language."
 
+    @staticmethod
+    def merge_duplicates(docs_scores):
+        """
+        Merge(remove) duplicate documents and average their scores.
+
+        :param docs_scores:
+        :return: List of unique documents with their average scores
+        """
+        from collections import defaultdict
+        doc_dict = defaultdict(list)  # Stores scores for each unique id
+        doc_objects = {}  # Stores a single doc object for each id
+
+        # Aggregate scores for each unique document ID
+        for doc, score in docs_scores:
+            doc_id = doc.metadata.get("id", None)
+            if doc_id is not None:
+                doc_dict[doc_id].append(score)
+                doc_objects[doc_id] = doc  # Keep one doc object per id
+
+        # Compute average score and reconstruct the list
+        result = [(doc_objects[doc_id], sum(scores) / len(scores)) for doc_id, scores in doc_dict.items()]
+        return result
+
     def suggest_columns_for_query(self, question: str) -> List[str]:
         """
         Analyzes a natural language query and suggests relevant database columns for forming a SQL query with LLM.
@@ -166,10 +189,15 @@ class VannaBase(ABC):
         Args:
             question (str): The question to generate a SQL query for.
             allow_llm_to_see_data (bool): Whether to allow the LLM to see the data (for the purposes of introspecting the data to generate the final SQL).
+            suggest_columns (bool): Whether parse user query into a suggested columns with LLM (for better retrieval from column names and description vectordb).
+            question_sql_list (list): A list of similar questions and their corresponding SQL queries.
+            ddl_list (list): A list of related DDL statements.
+            doc_list (list): A list of related documentation.
 
         Returns:
             str: The SQL query that answers the question.
         """
+
         if self.config is not None:
             initial_prompt = self.config.get("initial_prompt", None)
         else:
@@ -178,7 +206,16 @@ class VannaBase(ABC):
             question_sql_list = self.get_similar_question_sql(question,
                                                               **kwargs)
         if ddl_list is None:
-            ddl_list = self.get_related_ddl(question, **kwargs)
+            if suggest_columns:
+                pred_cols = self.suggest_columns_for_query(question)
+                ddl_list = set()
+                for col in pred_cols:
+                    kwargs_2 = kwargs.copy()
+                    kwargs_2["n_results"] = 5
+                    ddl_list.update(self.get_related_ddl(col, **kwargs_2))
+                ddl_list = list(ddl_list)
+            else:
+                ddl_list = self.get_related_ddl(question, **kwargs)
         if doc_list is None:
             doc_list = self.get_related_documentation(question, **kwargs)
         prompt = self.get_sql_prompt(
