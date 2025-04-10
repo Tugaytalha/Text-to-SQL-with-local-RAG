@@ -113,7 +113,7 @@ class VannaBase(ABC):
         result = [(doc_objects[doc_id], sum(scores) / len(scores)) for doc_id, scores in doc_dict.items()]
         return result
 
-    def suggest_columns_for_query(self, question: str) -> List[str]:
+    def suggest_columns_for_query(self, question: str, **kwargs) -> List[str]:
         """
         Analyzes a natural language query and suggests relevant database columns for forming a SQL query with LLM.
 
@@ -147,24 +147,33 @@ class VannaBase(ABC):
             "Just write your answer, don't write any other text in your answers.\n"
             "List each question on a separate line without numbering.\n\n"
 
+            "<|Example Input1|>\n"
             "Example query: \"2024 yılında kaç tane gerçek müşteri vardır?\" (How many real customers are there in 2024?)\n\n"
             "Your Output Should Include:\n"
-            "Müşteri numarası (Customer number) – to identify unique customers.\n"
-            "Müşteri tipi (Customer type) – to filter for 'real' customers.\n"
-            "Kayıt tarihi (Registration date) – to filter for customers in the year 2024.\n\n"
+            "Müşteri numarası – benzersiz müşterileri belirlemek için.\n"
+            "Müşteri tipi – 'gerçek' müşterileri filtrelemek için.\n"
+            "Müşteriye ait bilgilerin tutulduğu yıl bilgisi - Yıl bilgisini filtrelemek için.\n"
+            "<|End of Example Output1|>\n"
+            "<|Example Input2|>\n"
+            "Example query: \"2022 yılının Şubat ayında kredi kartını aktif kullana kaç müşterim var?\"\n\n"
+            "Your Output Should Include:\n"
+            "Müşteri numarası – benzersiz müşterileri belirlemek için.\n"
+            "Müşteriye ait bilgilerin tutulduğu yıl bilgisi - Yıl bilgisini filtrelemek için.\n"
+            "Müşteriye ait bilgilerin tutulduğu ay bilgisi - Ay bilgisini filtrelemek için.\n"
+            "Kredi Kartı Aktiflik Bilgisi - kredi kartını aktif kullanan müşterileri filtrelemek için.\n"
+            "<|End of Example Output2|>\n"
             "Now, analyze the following query and return a list of relevant column suggestions:\n"
             f" Query: {question}"
         )
 
         self.log(title="Column Generation",
                  message=f"Column suggestion generating for \"{question}\"")
-        response_text = self.submit_prompt(prompt=prompt)
+        response_text = self.submit_prompt(prompt=[(self.user_message(prompt))], **kwargs)
         self.log(title="LLM Column Suggestions", message=response_text)
 
         return response_text.split("\n")
 
     def generate_sql(self, question: str, allow_llm_to_see_data=False,
-                     suggest_columns=False,
                      question_sql_list=None, ddl_list=None, doc_list=None,
                      **kwargs) -> str:
         """
@@ -206,16 +215,7 @@ class VannaBase(ABC):
             question_sql_list = self.get_similar_question_sql(question,
                                                               **kwargs)
         if ddl_list is None:
-            if suggest_columns:
-                pred_cols = self.suggest_columns_for_query(question)
-                ddl_list = set()
-                for col in pred_cols:
-                    kwargs_2 = kwargs.copy()
-                    kwargs_2["n_results"] = 5
-                    ddl_list.update(self.get_related_ddl(col, **kwargs_2))
-                ddl_list = list(ddl_list)
-            else:
-                ddl_list = self.get_related_ddl(question, **kwargs)
+            ddl_list = self.get_related_ddl(question, **kwargs)
         if doc_list is None:
             doc_list = self.get_related_documentation(question, **kwargs)
         prompt = self.get_sql_prompt(

@@ -23,7 +23,7 @@ def generate_questions_cached():
 @st.cache_data(show_spinner="Generating SQL query ...")
 def generate_sql_cached(question: str):
     vn = setup_ttsql()
-    return vn.generate_sql(question=question, allow_llm_to_see_data=True)
+    return vn.generate_sql(question=question, allow_llm_to_see_data=True, suggest_columns=True)
 
 
 @st.cache_data(show_spinner="Getting SQL and retrieved chunks...")
@@ -41,8 +41,16 @@ def generate_sql_and_get_chunks_cached(question: str):
     # Get similar questions and their SQL
     question_sql_list = vn.get_similar_question_sql(question)
 
+    suggest_columns = True
     # Get related DDL statements
-    ddl_list = vn.get_related_ddl_reranked(question)
+    if suggest_columns:
+        pred_cols = LocalContext_Ollama(config={"model": "llama3.1:8b", "path": "chroma"}).suggest_columns_for_query(question)
+        ddl_list = set()
+        for i, col in enumerate(pred_cols):
+            ddl_list.update(str(i)+"." + str(j) + "." + res for j, res in enumerate(vn.get_related_ddl(col, n_results=10)))
+        ddl_list = list(ddl_list)
+    else:
+        ddl_list = vn.get_related_ddl(question)
 
     # Get related documentation
     doc_list = vn.get_related_documentation(question)
@@ -67,7 +75,8 @@ def generate_sql_and_get_chunks_cached(question: str):
     # ----------------------------------------------
 
     # Generate the SQL query using the retrieved context
-    sql = vn.generate_sql(question=question, allow_llm_to_see_data=True, question_sql_list=question_sql_list,
+    sql = vn.generate_sql(question=question, allow_llm_to_see_data=True, suggest_columns=True,
+                          question_sql_list=question_sql_list,
                           ddl_list=ddl_list, doc_list=doc_list)
 
     # Package the chunks and their embeddings
