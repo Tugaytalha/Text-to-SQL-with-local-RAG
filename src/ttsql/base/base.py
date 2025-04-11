@@ -156,7 +156,7 @@ class VannaBase(ABC):
             "Müşteriye ait bilgilerin tutulduğu ay bilgisi - Müşterinin yıl içinde bir \n"
             "<|End of Example Output1|>\n"
             "<|Example Input2|>\n"
-            "Example query: \"2022 yılının Şubat ayında kredi kartını aktif kullana kaç müşterim var?\"\n\n"
+            "Example query: \"2022 yılının Şubat ayında kredi kartını aktif kullanan kaç müşterim var?\"\n\n"
             "Your Output Should Include:\n"
             "Müşteri numarası – benzersiz müşterileri belirlemek için.\n"
             "Yıl - Müşteriye ait bilgilerin tutulduğu yıl bilgisi\n"

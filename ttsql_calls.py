@@ -45,13 +45,16 @@ def generate_sql_and_get_chunks_cached(question: str):
     # Get related DDL statements
     if suggest_columns:
         pred_cols = LocalContext_Ollama(config={"model": "llama3.1:8b", "path": "chroma"}).suggest_columns_for_query(question)
-        ddl_list = list() #set()
+        ddl_dic = dict() #set()
         for i, col in enumerate(pred_cols):
             # ddl_list.update()
-            for j, res in enumerate(vn.get_related_ddl(col, n_results=10)):
-                if res not in ddl_list:
-                    ddl_list.append(str(i) + "." + str(j) + "." + res)
-        ddl_list = list(ddl_list)
+            for j, res in enumerate(vn.get_related_ddl(col, n_results=5)):
+                if res not in ddl_dic.keys():
+                    ddl_dic[res] = (str(i) + "." + str(j) + ".")
+        ddl_list = list()
+        for res, num in ddl_dic.items():
+            ddl_list.append(num + res)
+
     else:
         ddl_list = vn.get_related_ddl(question)
 
