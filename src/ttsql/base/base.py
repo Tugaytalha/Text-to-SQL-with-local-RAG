@@ -152,15 +152,16 @@ class VannaBase(ABC):
             "Your Output Should Include:\n"
             "Müşteri numarası – benzersiz müşterileri belirlemek için.\n"
             "Müşteri tipi – 'gerçek' müşterileri filtrelemek için.\n"
-            "Müşteriye ait bilgilerin tutulduğu yıl bilgisi - Yıl bilgisini filtrelemek için.\n"
+            "Müşteriye ait bilgilerin tutulduğu yıl bilgisi\n"
+            "Müşteriye ait bilgilerin tutulduğu ay bilgisi - Müşterinin yıl içinde bir \n"
             "<|End of Example Output1|>\n"
             "<|Example Input2|>\n"
             "Example query: \"2022 yılının Şubat ayında kredi kartını aktif kullana kaç müşterim var?\"\n\n"
             "Your Output Should Include:\n"
             "Müşteri numarası – benzersiz müşterileri belirlemek için.\n"
-            "Müşteriye ait bilgilerin tutulduğu yıl bilgisi - Yıl bilgisini filtrelemek için.\n"
-            "Müşteriye ait bilgilerin tutulduğu ay bilgisi - Ay bilgisini filtrelemek için.\n"
-            "Kredi Kartı Aktiflik Bilgisi - kredi kartını aktif kullanan müşterileri filtrelemek için.\n"
+            "Yıl - Müşteriye ait bilgilerin tutulduğu yıl bilgisi\n"
+            "Ay - Müşteriye ait bilgilerin tutulduğu ay bilgisi\n"
+            "Kredi Kartı Aktifliği - kredi kartını aktif kullanan müşterileri filtrelemek için.\n"
             "<|End of Example Output2|>\n"
             "Now, analyze the following query and return a list of relevant column suggestions:\n"
             f" Query: {question}"
@@ -810,7 +811,11 @@ class VannaBase(ABC):
               - If an unsafe or ambiguous request is made, refuse or seek clarification rather than generating harmful SQL.
               """
 
-        instructions = "Follow the tables and columns in the DDL in the prompt. Do not use any table or column not specified in the DDL"
+        instructions = ("Follow the tables and columns in the DDL in the prompt.\n"
+                        "Do not use any table or column not specified in the DDL.\n"
+                        "Just use the tables and columns in the DDL. \n"
+                        "Do not use any other tables or columns which didn't specified in DDL!!!\n"
+                        )
 
         # If no initial prompt is provided, set a default introduction for the LLM.
         if initial_prompt is None:
