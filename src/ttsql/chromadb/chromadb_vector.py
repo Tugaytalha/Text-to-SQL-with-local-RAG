@@ -312,6 +312,32 @@ class ChromaDB_VectorStore(VannaBase):
             return documents
 
     @staticmethod
+    def _extract_distances(query_results) -> list:
+        """
+        Static method to extract the distances from the results of a query.
+
+        Args:
+            query_results (pd.DataFrame): The dataframe to use.
+
+        Returns:
+            List[float] or None: The extracted distances, or an empty list or
+            single distance if an error occurred.
+        """
+        if query_results is None:
+            return []
+
+        if "distances" in query_results:
+            distances = query_results["distances"]
+
+            if len(distances) == 1 and isinstance(distances[0], list):
+                try:
+                    distances = [float(dist) for dist in distances[0]]
+                except Exception as e:
+                    return distances[0]
+
+            return distances
+
+    @staticmethod
     def sort_chunks(chunks: list, scores: list) -> list:
         """
         This function is used to sort the chunks based on the scores.
@@ -401,6 +427,12 @@ class ChromaDB_VectorStore(VannaBase):
                 n_results=kwargs.get("n_results", self.n_results_ddl),
             )
         )
+
+    def get_related_ddl_with_score(self, question: str, **kwargs) -> pd.DataFrame:
+        return self.ddl_collection.query(
+                query_texts=[question],
+                n_results=kwargs.get("n_results", self.n_results_ddl),
+            )
 
     def get_related_ddl_reranked(self, question: str, **kwargs) -> list:
         chunks = ChromaDB_VectorStore._extract_documents(

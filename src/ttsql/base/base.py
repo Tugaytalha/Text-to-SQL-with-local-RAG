@@ -145,6 +145,7 @@ class VannaBase(ABC):
             "Use the same language as the original query.\n"
             "Separate each query with a newline.\n"
             "Just write your answer, don't write any other text in your answers.\n"
+            "Provide only column suggestions. Do not add extra lines to your answer.\n"
             "List each question on a separate line without numbering.\n\n"
 
             "<|Example Input1|>\n"
@@ -162,7 +163,7 @@ class VannaBase(ABC):
             "Yıl - Müşteriye ait bilgilerin tutulduğu yıl bilgisi\n"
             "Ay - Müşteriye ait bilgilerin tutulduğu ay bilgisi\n"
             "Kredi Kartı Aktifliği - kredi kartını aktif kullanan müşterileri filtrelemek için.\n"
-            "<|End of Example Output2|>\n"
+            "<|End of Example Output2|>\n\n"
             "Now, analyze the following query and return a list of relevant column suggestions:\n"
             f" Query: {question}"
         )
@@ -510,6 +511,19 @@ class VannaBase(ABC):
 
         Returns:
             list: A list of related DDL statements.
+        """
+        pass
+
+    @abstractmethod
+    def get_related_ddl_with_score(self, question: str, **kwargs) -> list:
+        """
+        This method is used to get related DDL statements to a question with scores.
+
+        Args:
+            question (str): The question to get related DDL statements for.
+
+        Returns:
+            list: A list of tuples containing related DDL statements and their scores.
         """
         pass
 
