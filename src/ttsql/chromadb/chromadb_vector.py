@@ -350,7 +350,7 @@ class ChromaDB_VectorStore(VannaBase):
             list: A list of chunks sorted based on the scores.
         """
 
-        sorted_chunks = sorted(zip(chunks, scores), key=lambda x: x[1], reverse=False)
+        sorted_chunks = sorted(zip(chunks, scores), key=lambda x: x[1], reverse=True)
 
         return sorted_chunks
 
@@ -426,16 +426,17 @@ class ChromaDB_VectorStore(VannaBase):
         )
 
     def get_related_ddl_with_score(self, question: str, rerank: bool = False, **kwargs) -> list:
+        n_result = kwargs.get("n_results", self.n_results_ddl)
         results = self.ddl_collection.query(
                 query_texts=[question],
-                n_results=kwargs.get("n_results", self.n_results_ddl) * (3 if rerank else 1),
+                n_results=n_result * (3 if rerank else 1),
             )
 
         if rerank:
             chunks = ChromaDB_VectorStore._extract_documents(results)
             reranked_chunks = self.rerank(question, chunks)
 
-            return reranked_chunks[:self.n_results_ddl]
+            return reranked_chunks[:n_result]
 
         return list(zip(
             ChromaDB_VectorStore._extract_documents(results),
