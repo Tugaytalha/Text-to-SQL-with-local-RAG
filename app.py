@@ -22,6 +22,8 @@ from ttsql_calls import (
     generate_sql_and_get_chunks_cached,
     remove_collection_cached,
     generate_visualization,
+    start_time_cached,
+    end_time_cached,
 )
 
 avatar_url = "https://play-lh.googleusercontent.com/27WE_FCTH2aJh0mzYmPYgQp6ZdmZK27Vyf2ER_o9862cAE2L_tWikyx9qsMntI3Nbw"
@@ -76,9 +78,20 @@ with tab1:
         st.session_state["my_question"] = my_question
         user_message = st.chat_message("user")
         user_message.write(f"{my_question}")
+        rerank = st.session_state.get("rerank_chunks", False)
+
+        # Keep run time for completion time with caching
+        start_time = start_time_cached(my_question, rerank)
 
         # Generate SQL
-        sql, chunks = generate_sql_and_get_chunks_cached(question=my_question, rerank=st.session_state.get("rerank_chunks", False))
+        sql, chunks = generate_sql_and_get_chunks_cached(question=my_question, rerank=rerank)
+
+        end_time = end_time_cached(my_question, rerank)
+
+        # Show completion time
+        completion_time = end_time - start_time
+        completion_time_message = st.chat_message("assistant", avatar=avatar_url)
+        completion_time_message.write(f"Completion Time: {completion_time:.2f} seconds")
 
         # Show the Retrieved chunks
         if st.session_state.get("show_chunks", False):

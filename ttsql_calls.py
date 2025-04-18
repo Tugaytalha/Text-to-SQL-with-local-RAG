@@ -1,3 +1,4 @@
+import time
 import json
 import pandas as pd
 import numpy as np
@@ -5,6 +6,7 @@ import streamlit as st
 
 from src.ttsql.local import LocalContext_Ollama
 from src.ttsql.utils import visualize_query_embeddings
+
 
 @st.cache_resource(ttl=3600)
 def setup_ttsql():
@@ -44,8 +46,9 @@ def generate_sql_and_get_chunks_cached(question: str, rerank: bool = False):
     suggest_columns = True
     # Get related DDL statements
     if suggest_columns:
-        pred_cols = LocalContext_Ollama(config={"model": "mt2sql", "path": "chroma"}).suggest_columns_for_query(question)
-        ddl_dic = dict() #set()
+        pred_cols = LocalContext_Ollama(config={"model": "mt2sql", "path": "chroma"}).suggest_columns_for_query(
+            question)
+        ddl_dic = dict()  # set()
         for i, col in enumerate(pred_cols):
             # ddl_list.update()
             results = vn.get_related_ddl_with_score(col, rerank=rerank, n_results=5)
@@ -92,7 +95,7 @@ def generate_sql_and_get_chunks_cached(question: str, rerank: bool = False):
         "question_sql_list": question_sql_list,
         "ddl_list": ddl_list,
         "doc_list": doc_list,
-        "retrieved_embeddings": np.array(retrieved_embeddings) # Store as numpy array
+        "retrieved_embeddings": np.array(retrieved_embeddings)  # Store as numpy array
     }
 
     return sql, chunks
@@ -122,6 +125,32 @@ def generate_plotly_code_cached(question, sql, df):
     code = vn.generate_plotly_code(question=question, sql=sql, df=df)
     return code
 
+
+@st.cache_data()
+def start_time_cached(question, rerank):
+    """
+    Just returns the current time, just exist for question+rerank based caching
+    Args:
+        question: to hold start time of the question
+        rerank: to hold start time of the question based on rerank
+
+    Returns:
+        current time
+    """
+    return time.time()
+
+@st.cache_data()
+def end_time_cached(question, rerank):
+    """
+    Just returns the current time, just exist for question+rerank based caching
+    Args:
+        question: to hold end time of the question
+        rerank: to hold end time of the question based on rerank
+
+    Returns:
+        current time
+    """
+    return time.time()
 
 @st.cache_data(show_spinner="Getting retrieved chunks...")
 def get_retrieved_chunks_cached(question: str):
@@ -190,8 +219,8 @@ def generate_visualization(query: str, chunks: dict):
         # 2. Get All Chunk Embeddings
         all_chunk_embeddings = get_all_embeddings_cached()
         if all_chunk_embeddings.size == 0:
-             st.warning("No embeddings found in the database to visualize.")
-             return None
+            st.warning("No embeddings found in the database to visualize.")
+            return None
 
         # 3. Get Retrieved Embeddings (already calculated)
         retrieved_embeddings = chunks.get("retrieved_embeddings", np.array([]))
