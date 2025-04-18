@@ -82,19 +82,6 @@ def deterministic_uuid(content: Union[str, bytes]) -> str:
     return content_uuid
 
 
-def score_passed(score, rerank) -> bool:
-    """
-    Checks if the score passed the threshold
-    Args:
-        score: score to check
-        rerank: whether it is score rerank result or distance from retrieval
-
-    Returns:
-        bool: True if the score passed the threshold
-    """
-    return score > 0.1 if rerank else score < 1.5
-
-
 def visualize_query_embeddings(query, query_embedding, all_chunk_embeddings,
                                retrieved_embeddings):
     """

@@ -66,6 +66,8 @@ class ChromaDB_VectorStore(VannaBase):
                                         config.get("n_results", 10))
         self.n_retrieval_ddl = config.get("n_retrieval_ddl",
                                           config.get("n_results", 50))
+        self.retrieval_threshold = config.get("retrieval_threshold", 1.5)
+        self.rerank_threshold = config.get("rerank_threshold", 0.1)
 
         if curr_client == "persistent":
             self.chroma_client = chromadb.PersistentClient(
@@ -285,6 +287,25 @@ class ChromaDB_VectorStore(VannaBase):
         else:
             return False
 
+    def score_passed(self, score, rerank, retrieval_threshold: float = None, rerank_threshold: float = None) -> bool:
+        """
+        Checks if the score passed the threshold
+        Args:
+            score: score to check
+            rerank: whether it is score rerank result or distance from retrieval
+            retrieval_threshold: retrieval threshold(use if it is retrieval result) if None, use self.retrieval_threshold
+            rerank_threshold: rerank threshold (use if it is rerank result) if None, use self.rerank_threshold
+
+        Returns:
+            bool: True if the score passed the threshold
+        """
+        if retrieval_threshold is None:
+            retrieval_threshold = self.retrieval_threshold
+        if rerank_threshold is None:
+            rerank_threshold = self.rerank_threshold
+
+        return score > rerank_threshold if rerank else score < retrieval_threshold
+
     @staticmethod
     def _extract_documents(query_results) -> list:
         """
@@ -432,16 +453,24 @@ class ChromaDB_VectorStore(VannaBase):
                 n_results=n_result * (3 if rerank else 1),
             )
 
-        if rerank:
-            chunks = ChromaDB_VectorStore._extract_documents(results)
-            reranked_chunks = self.rerank(question, chunks)
-
-            return reranked_chunks[:n_result]
-
-        return list(zip(
+        # Filter the results based on the distance
+        results = list(zip(
             ChromaDB_VectorStore._extract_documents(results),
             ChromaDB_VectorStore._extract_distances(results)
         ))
+        results = list(filter(lambda pair: pair[1] < kwargs.get("retrival_threshold", self.retrieval_threshold), results))
+
+        print(f"Number of results: {len(results)}\n\n\n")
+
+        if rerank:
+            chunks = [pair[0] for pair in results]
+            print( f"Number of chunks: {len(chunks)}\n\n\n")
+            reranked_chunks = self.rerank(question, chunks)
+            print( f"Number of reranked chunks: {len(reranked_chunks)}\n\n\n")
+            print(f"{n_result}\n\n\n")
+            return reranked_chunks[:n_result]
+
+        return results
 
     def get_related_ddl_reranked(self, question: str, **kwargs) -> list:
         chunks = ChromaDB_VectorStore._extract_documents(

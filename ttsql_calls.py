@@ -4,7 +4,7 @@ import numpy as np
 import streamlit as st
 
 from src.ttsql.local import LocalContext_Ollama
-from src.ttsql.utils import visualize_query_embeddings, score_passed
+from src.ttsql.utils import visualize_query_embeddings
 
 @st.cache_resource(ttl=3600)
 def setup_ttsql():
@@ -51,7 +51,7 @@ def generate_sql_and_get_chunks_cached(question: str, rerank: bool = False):
             results = vn.get_related_ddl_with_score(col, rerank=rerank, n_results=5)
             print(results)
             for j, (chunk, score) in enumerate(results):
-                if chunk not in ddl_dic.keys() and score_passed(score, rerank):
+                if chunk not in ddl_dic.keys() and vn.score_passed(score, rerank):
                     ddl_dic[chunk] = (str(i) + "." + str(j) + ".")
         ddl_list = list()
         for chunk, num in ddl_dic.items():
