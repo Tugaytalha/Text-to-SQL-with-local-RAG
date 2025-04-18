@@ -44,7 +44,7 @@ def generate_sql_and_get_chunks_cached(question: str, rerank: bool = False):
     suggest_columns = True
     # Get related DDL statements
     if suggest_columns:
-        pred_cols = LocalContext_Ollama(config={"model": "mt2sl", "path": "chroma"}).suggest_columns_for_query(question)
+        pred_cols = LocalContext_Ollama(config={"model": "mt2sql", "path": "chroma"}).suggest_columns_for_query(question)
         ddl_dic = dict() #set()
         for i, col in enumerate(pred_cols):
             # ddl_list.update()
