@@ -515,12 +515,13 @@ class VannaBase(ABC):
         pass
 
     @abstractmethod
-    def get_related_ddl_with_score(self, question: str, **kwargs) -> list:
+    def get_related_ddl_with_score(self, question: str, rerank: bool, **kwargs) -> list:
         """
         This method is used to get related DDL statements to a question with scores.
 
         Args:
             question (str): The question to get related DDL statements for.
+            rerank: Whether to rerank the DDL statements.
 
         Returns:
             list: A list of tuples containing related DDL statements and their scores.

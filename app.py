@@ -33,10 +33,12 @@ st.title("Albaraka Text2SQL")
 tab1, tab2 = st.tabs(["Query Interface", "Database Management"])
 
 with tab1:
+    st.sidebar.title("Process Settings")
+    st.sidebar.checkbox("Rerank Chunks", value=False, key="rerank_chunks")
     st.sidebar.title("Output Settings")
     st.sidebar.checkbox("Show Retrieved Chunks", value=True, key="show_chunks")
     st.sidebar.checkbox("Show SQL", value=True, key="show_sql")
-    st.sidebar.checkbox("Show Embedding Visualization", value=True, key="show_viz")
+    st.sidebar.checkbox("Show Embedding Visualization", value=False, key="show_viz")
     st.sidebar.checkbox("Show Table", value=False, key="show_table")
     st.sidebar.checkbox("Show Plotly Code", value=False, key="show_plotly_code")
     st.sidebar.checkbox("Show Chart", value=False, key="show_chart")
@@ -76,7 +78,7 @@ with tab1:
         user_message.write(f"{my_question}")
 
         # Generate SQL
-        sql, chunks = generate_sql_and_get_chunks_cached(question=my_question)
+        sql, chunks = generate_sql_and_get_chunks_cached(question=my_question, rerank=st.session_state.get("rerank_chunks", False))
 
         # Show the Retrieved chunks
         if st.session_state.get("show_chunks", False):

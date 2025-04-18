@@ -4,7 +4,7 @@ import numpy as np
 import streamlit as st
 
 from src.ttsql.local import LocalContext_Ollama
-from src.ttsql.utils import visualize_query_embeddings
+from src.ttsql.utils import visualize_query_embeddings, score_passed
 
 @st.cache_resource(ttl=3600)
 def setup_ttsql():
@@ -27,7 +27,7 @@ def generate_sql_cached(question: str):
 
 
 @st.cache_data(show_spinner="Getting SQL and retrieved chunks...")
-def generate_sql_and_get_chunks_cached(question: str):
+def generate_sql_and_get_chunks_cached(question: str, rerank: bool = False):
     """
     Get the SQL query and the retrieved chunks used to generate it.
     Returns a tuple of (sql, chunks) where chunks is a dict containing:
@@ -48,14 +48,14 @@ def generate_sql_and_get_chunks_cached(question: str):
         ddl_dic = dict() #set()
         for i, col in enumerate(pred_cols):
             # ddl_list.update()
-            results = vn.get_related_ddl_with_score(col, n_results=5)
+            results = vn.get_related_ddl_with_score(col, rerank=rerank, n_results=5)
             print(results)
-            for j, res in enumerate(vn._extract_documents(results)):
-                if res not in ddl_dic.keys() and vn._extract_distances(results)[j] < 1.5:
-                    ddl_dic[res] = (str(i) + "." + str(j) + ".")
+            for j, (chunk, score) in enumerate(results):
+                if chunk not in ddl_dic.keys() and score_passed(score, rerank):
+                    ddl_dic[chunk] = (str(i) + "." + str(j) + ".")
         ddl_list = list()
-        for res, num in ddl_dic.items():
-            ddl_list.append(num + res)
+        for chunk, num in ddl_dic.items():
+            ddl_list.append(num + chunk)
 
     else:
         ddl_list = vn.get_related_ddl(question)

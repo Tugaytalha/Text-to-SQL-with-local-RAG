@@ -350,9 +350,9 @@ class ChromaDB_VectorStore(VannaBase):
             list: A list of chunks sorted based on the scores.
         """
 
-        sorted_chunks = sorted(zip(chunks, scores), key=lambda x: x[1], reverse=True)
+        sorted_chunks = sorted(zip(chunks, scores), key=lambda x: x[1], reverse=False)
 
-        return [chunk for chunk, _ in sorted_chunks]
+        return sorted_chunks
 
     def rerank(self, question: str, chunks: list) -> list:
         """
@@ -369,6 +369,9 @@ class ChromaDB_VectorStore(VannaBase):
 
         scores = []
 
+        # Construct sentence pairs
+        sentence_pairs = [[question, chunk] for chunk in chunks]
+
         # Score the similarity of the chunks to the question
         if reranker_dict[reranker_list[
             reranker_index]] == RerankerType.AutoModelForSequenceClassification:
@@ -381,9 +384,6 @@ class ChromaDB_VectorStore(VannaBase):
 
             model.to("cuda" if torch.cuda.is_available() else "cpu")
             model.eval()
-
-            # Construct sentence pairs
-            sentence_pairs = [[question, chunk] for chunk in chunks]
 
             # Compute scores
             scores = model.compute_score(sentence_pairs, max_length=1024)
@@ -398,9 +398,6 @@ class ChromaDB_VectorStore(VannaBase):
                 trust_remote_code=True,
             )
             model.eval()
-
-            # Construct sentence pairs
-            sentence_pairs = [[question, chunk] for chunk in chunks]
 
             with torch.no_grad():
                 inputs = tokenizer(sentence_pairs, padding=True,
@@ -428,11 +425,22 @@ class ChromaDB_VectorStore(VannaBase):
             )
         )
 
-    def get_related_ddl_with_score(self, question: str, **kwargs) -> pd.DataFrame:
-        return self.ddl_collection.query(
+    def get_related_ddl_with_score(self, question: str, rerank: bool = False, **kwargs) -> list:
+        results = self.ddl_collection.query(
                 query_texts=[question],
-                n_results=kwargs.get("n_results", self.n_results_ddl),
+                n_results=kwargs.get("n_results", self.n_results_ddl) * (3 if rerank else 1),
             )
+
+        if rerank:
+            chunks = ChromaDB_VectorStore._extract_documents(results)
+            reranked_chunks = self.rerank(question, chunks)
+
+            return reranked_chunks[:self.n_results_ddl]
+
+        return list(zip(
+            ChromaDB_VectorStore._extract_documents(results),
+            ChromaDB_VectorStore._extract_distances(results)
+        ))
 
     def get_related_ddl_reranked(self, question: str, **kwargs) -> list:
         chunks = ChromaDB_VectorStore._extract_documents(
