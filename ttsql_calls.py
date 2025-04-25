@@ -12,7 +12,8 @@ from src.ttsql.utils import visualize_query_embeddings
 def setup_ttsql():
     if "vn" not in st.session_state:
         st.session_state.vn = LocalContext_Ollama(config={"model": "mannix/defog-llama3-sqlcoder-8b", "path": "chroma"})
-        st.session_state.vn.connect_to_sqlite("http://127.0.0.1:8001/download/flight_reservations.db")
+        st.session_state.vn.run_sql_is_set = False
+        st.session_state.vn.dialect = "No_Dialect"
     return st.session_state.vn
 
 

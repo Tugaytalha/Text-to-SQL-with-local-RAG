@@ -3,6 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Dict, List, Union
 
+import requests
 
 @dataclass
 class Status:
@@ -290,3 +291,27 @@ class TrainingPlan:
             if str(plan_item) == item:
                 self._plan.remove(plan_item)
                 break
+
+
+class CustomEmbeddingFunction:
+    def __init__(self, host: str = "http://10.144.100.204:38000/embedding", model: str = "Omerhan/intfloat-fine-tuned-14376-v4"):
+        self.host = host
+        self.model = model
+
+    def __call__(self, texts: List[str]) -> List[List[float]]:
+        if isinstance(texts, str):
+            texts = [texts]
+
+        embeddings = []
+        for text in texts:
+            payload = {
+                "model": self.model,
+                "prompt": text
+            }
+
+            response = requests.post(self.host, json=payload)
+            response.raise_for_status()
+            data = response.json()
+            embeddings.append(data["embedding"])
+
+        return embeddings
